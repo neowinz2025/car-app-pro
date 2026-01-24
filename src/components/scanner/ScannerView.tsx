@@ -1,10 +1,11 @@
-import { useState } from 'react';
-import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ActiveStep } from '@/types/plate';
 import { toast } from 'sonner';
+import { useCamera } from '@/hooks/useCamera';
 
 interface ScannerViewProps {
   activeStep: ActiveStep;
@@ -13,19 +14,44 @@ interface ScannerViewProps {
 }
 
 export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: ScannerViewProps) {
-  const [isScanning, setIsScanning] = useState(false);
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
 
-  const handleScanToggle = () => {
+  const {
+    videoRef,
+    isActive,
+    error,
+    startCamera,
+    stopCamera,
+    toggleFlashlight,
+  } = useCamera({ facingMode: 'environment' });
+
+  const handleScanToggle = async () => {
     if (!activeStep) {
       toast.error('Selecione uma etapa primeiro', {
         description: 'Escolha Loja ou Lava Jato para começar',
       });
       return;
     }
-    setIsScanning(!isScanning);
+
+    if (isActive) {
+      stopCamera();
+    } else {
+      await startCamera();
+    }
+  };
+
+  const handleFlashlightToggle = async () => {
+    const newState = !flashlightOn;
+    const success = await toggleFlashlight(newState);
+    if (success) {
+      setFlashlightOn(newState);
+    } else if (newState) {
+      toast.error('Lanterna não disponível', {
+        description: 'Este dispositivo não suporta lanterna',
+      });
+    }
   };
 
   const handleManualAdd = () => {
@@ -44,6 +70,13 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       }
     }
   };
+
+  // Stop camera when component unmounts or step changes
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
   return (
     <div className="flex flex-col h-full px-4 py-4 gap-4">
@@ -78,39 +111,69 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
 
       {/* Camera Viewfinder */}
       <div className="relative flex-1 min-h-[300px] bg-card rounded-3xl overflow-hidden border border-border">
-        {/* Placeholder for camera */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-muted/50 to-muted">
-          {isScanning ? (
-            <>
-              {/* Scanning animation */}
-              <div className="relative w-64 h-40">
-                <div className="absolute inset-0 border-2 border-primary/30 rounded-lg" />
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/20 animate-pulse-ring" />
-                </div>
-              </div>
-              <p className="mt-4 text-sm text-muted-foreground">Posicione a placa na área</p>
-            </>
-          ) : (
-            <>
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Camera className="w-10 h-10 text-muted-foreground" />
-              </div>
-              <p className="text-muted-foreground text-sm">Toque para iniciar</p>
-              {!activeStep && (
-                <p className="text-xs text-destructive mt-2">Selecione Loja ou Lava Jato acima</p>
-              )}
-            </>
+        {/* Video Element */}
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover",
+            !isActive && "hidden"
           )}
-        </div>
+        />
+
+        {/* Overlay when camera is active */}
+        {isActive && (
+          <div className="absolute inset-0 pointer-events-none">
+            {/* Scanning frame */}
+            <div className="absolute inset-8 border-2 border-primary/50 rounded-lg">
+              {/* Corner markers */}
+              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
+              
+              {/* Scan line animation */}
+              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line" />
+            </div>
+          </div>
+        )}
+
+        {/* Placeholder when camera is inactive */}
+        {!isActive && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-muted/50 to-muted">
+            {error ? (
+              <>
+                <div className="w-20 h-20 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                  <AlertCircle className="w-10 h-10 text-destructive" />
+                </div>
+                <p className="text-destructive text-sm text-center px-8 mb-4">{error}</p>
+                <Button variant="outline" onClick={startCamera}>
+                  Tentar novamente
+                </Button>
+              </>
+            ) : (
+              <>
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+                  <Camera className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground text-sm">Toque para iniciar a câmera</p>
+                {!activeStep && (
+                  <p className="text-xs text-destructive mt-2">Selecione Loja ou Lava Jato acima</p>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Scan controls overlay */}
         <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
           <Button
             variant="secondary"
             size="icon"
-            onClick={() => setFlashlightOn(!flashlightOn)}
+            onClick={handleFlashlightToggle}
+            disabled={!isActive}
             className="w-12 h-12 rounded-full bg-card/90 backdrop-blur-sm"
           >
             {flashlightOn ? (
@@ -124,12 +187,16 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
             onClick={handleScanToggle}
             className={cn(
               "w-16 h-16 rounded-full transition-all duration-200",
-              isScanning 
+              isActive 
                 ? "bg-destructive hover:bg-destructive/90" 
                 : "bg-primary hover:bg-primary/90"
             )}
           >
-            <Camera className="w-7 h-7" />
+            {isActive ? (
+              <X className="w-7 h-7" />
+            ) : (
+              <Camera className="w-7 h-7" />
+            )}
           </Button>
 
           <Button
@@ -167,10 +234,10 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       <div className="flex items-center justify-center gap-2 py-2">
         <div className={cn(
           "w-2 h-2 rounded-full",
-          isScanning ? "bg-success animate-pulse" : "bg-muted-foreground"
+          isActive ? "bg-success animate-pulse" : "bg-muted-foreground"
         )} />
         <span className="text-sm text-muted-foreground">
-          {isScanning ? 'Escaneando...' : 'Aguardando'}
+          {isActive ? 'Câmera ativa' : error ? 'Erro na câmera' : 'Aguardando'}
         </span>
       </div>
     </div>
