@@ -1,0 +1,180 @@
+import { useState } from 'react';
+import { Download, FileSpreadsheet, Eye, Store, Droplets, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { PlateRecord } from '@/types/plate';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+
+interface ExportViewProps {
+  plates: PlateRecord[];
+  onFillStep: (step: 'loja' | 'lavaJato') => void;
+}
+
+export function ExportView({ plates, onFillStep }: ExportViewProps) {
+  const [showPreview, setShowPreview] = useState(false);
+
+  const formatPlate = (plate: string) => {
+    if (plate.length === 7) {
+      return `${plate.slice(0, 3)}-${plate.slice(3)}`;
+    }
+    return plate;
+  };
+
+  const handleExportCSV = () => {
+    if (plates.length === 0) {
+      toast.error('Nenhuma placa para exportar');
+      return;
+    }
+
+    const headers = ['Placa', 'Data', 'Hora', 'Loja', 'Lava Jato'];
+    const rows = plates.map(p => [
+      formatPlate(p.plate),
+      format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }),
+      format(p.timestamp, 'HH:mm', { locale: ptBR }),
+      p.loja ? 'Sim' : 'Não',
+      p.lavaJato ? 'Sim' : 'Não',
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.join(','))
+      .join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast.success('Arquivo exportado!', {
+      description: `${plates.length} placas exportadas`,
+    });
+  };
+
+  return (
+    <div className="flex flex-col h-full px-4 py-4 overflow-y-auto scrollbar-hide">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Download className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="text-lg font-bold">Exportar Dados</h2>
+          <p className="text-xs text-muted-foreground">{plates.length} placas registradas</p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="bg-card rounded-2xl p-4 border border-border mb-4">
+        <h3 className="font-semibold mb-3">Ações Rápidas</h3>
+        <p className="text-xs text-muted-foreground mb-4">
+          Marque todas as placas como passadas em uma etapa
+        </p>
+        
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="flex-1 h-12 rounded-xl"
+            onClick={() => {
+              onFillStep('loja');
+              toast.success('Todas marcadas como Loja');
+            }}
+          >
+            <Store className="w-4 h-4 mr-2" />
+            Preencher Loja
+          </Button>
+          
+          <Button
+            variant="outline"
+            className="flex-1 h-12 rounded-xl"
+            onClick={() => {
+              onFillStep('lavaJato');
+              toast.success('Todas marcadas como Lava Jato');
+            }}
+          >
+            <Droplets className="w-4 h-4 mr-2" />
+            Preencher Lava Jato
+          </Button>
+        </div>
+      </div>
+
+      {/* Export Options */}
+      <div className="bg-card rounded-2xl p-4 border border-border mb-4">
+        <h3 className="font-semibold mb-3">Exportar</h3>
+        
+        <div className="space-y-3">
+          <Button
+            variant="outline"
+            className="w-full h-12 rounded-xl justify-start"
+            onClick={() => setShowPreview(!showPreview)}
+          >
+            <Eye className="w-5 h-5 mr-3" />
+            <span className="flex-1 text-left">Prévia dos Dados</span>
+          </Button>
+          
+          <Button
+            className="w-full h-12 rounded-xl justify-start"
+            onClick={handleExportCSV}
+            disabled={plates.length === 0}
+          >
+            <FileSpreadsheet className="w-5 h-5 mr-3" />
+            <span className="flex-1 text-left">Baixar CSV</span>
+            <span className="text-xs opacity-70">.csv</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* Preview Table */}
+      {showPreview && (
+        <div className="bg-card rounded-2xl border border-border overflow-hidden animate-scale-in">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/50">
+                  <th className="text-left py-3 px-4 font-medium">Placa</th>
+                  <th className="text-left py-3 px-4 font-medium">Data</th>
+                  <th className="text-center py-3 px-2 font-medium">
+                    <Store className="w-4 h-4 inline" />
+                  </th>
+                  <th className="text-center py-3 px-2 font-medium">
+                    <Droplets className="w-4 h-4 inline" />
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {plates.slice(0, 10).map((plate) => (
+                  <tr key={plate.id} className="border-b border-border last:border-0">
+                    <td className="py-3 px-4 font-mono font-medium">
+                      {formatPlate(plate.plate)}
+                    </td>
+                    <td className="py-3 px-4 text-muted-foreground">
+                      {format(plate.timestamp, 'dd/MM HH:mm')}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      {plate.loja && (
+                        <Check className="w-4 h-4 text-primary inline" />
+                      )}
+                    </td>
+                    <td className="py-3 px-2 text-center">
+                      {plate.lavaJato && (
+                        <Check className="w-4 h-4 text-success inline" />
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {plates.length > 10 && (
+            <div className="py-2 px-4 text-center text-xs text-muted-foreground bg-muted/30">
+              Mostrando 10 de {plates.length} placas
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
