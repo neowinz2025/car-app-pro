@@ -5,6 +5,7 @@ import { ScannerView } from '@/components/scanner/ScannerView';
 import { PlatesList } from '@/components/plates/PlatesList';
 import { StatsView } from '@/components/stats/StatsView';
 import { ExportView } from '@/components/export/ExportView';
+import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
 
 const Index = () => {
@@ -58,6 +59,7 @@ const Index = () => {
       </main>
       
       <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+      <InstallPrompt />
     </div>
   );
 };
