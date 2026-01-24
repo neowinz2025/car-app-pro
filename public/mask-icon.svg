@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="64" fill="#2563eb"/>
+  <g fill="white">
+    <!-- Car body -->
+    <path d="M120 280 L160 200 L352 200 L392 280 L400 280 L400 340 L380 340 L380 360 L320 360 L320 340 L192 340 L192 360 L132 360 L132 340 L112 340 L112 280 Z" />
+    <!-- Plate -->
+    <rect x="180" y="290" width="152" height="40" rx="4" fill="#2563eb"/>
+    <!-- Plate text lines -->
+    <rect x="195" y="302" width="50" height="6" rx="2" fill="white"/>
+    <rect x="255" y="302" width="60" height="6" rx="2" fill="white"/>
+    <rect x="195" y="315" width="120" height="8" rx="2" fill="white"/>
+    <!-- Wheels -->
+    <circle cx="160" cy="340" r="30" fill="#1e40af"/>
+    <circle cx="352" cy="340" r="30" fill="#1e40af"/>
+    <circle cx="160" cy="340" r="15" fill="white"/>
+    <circle cx="352" cy="340" r="15" fill="white"/>
+    <!-- Windows -->
+    <path d="M175 210 L195 260 L255 260 L255 210 Z" fill="#1e40af" opacity="0.5"/>
+    <path d="M265 210 L265 260 L320 260 L340 210 Z" fill="#1e40af" opacity="0.5"/>
+  </g>
+</svg>
