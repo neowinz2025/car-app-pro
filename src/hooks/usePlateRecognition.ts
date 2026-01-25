@@ -1,6 +1,29 @@
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Create audio context for beep sound
+const playBeep = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = 1000; // 1000Hz beep
+    oscillator.type = 'sine';
+    
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+    
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.3);
+  } catch (e) {
+    console.warn('Could not play beep sound:', e);
+  }
+};
+
 interface RecognizedPlate {
   plate: string;
   confidence: number;
@@ -64,6 +87,7 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
         if (bestPlate.plate !== lastProcessedPlateRef.current) {
           lastProcessedPlateRef.current = bestPlate.plate;
           setLastDetectedPlate(bestPlate.plate);
+          playBeep(); // Play sound on detection
           onPlateDetected?.(bestPlate.plate);
         }
       }
