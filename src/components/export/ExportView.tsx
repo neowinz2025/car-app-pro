@@ -28,17 +28,57 @@ export function ExportView({ plates, onFillStep }: ExportViewProps) {
       return;
     }
 
-    const headers = ['Placa', 'Data', 'Loja', 'Lava Jato'];
-    const rows = plates.map(p => [
-      formatPlate(p.plate),
-      format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }),
-      p.loja ? 'Sim' : 'Não',
-      p.lavaJato ? 'Sim' : 'Não',
-    ]);
+    const lojaPlates = plates.filter(p => p.loja && !p.lavaJato);
+    const lavaJatoPlates = plates.filter(p => p.lavaJato && !p.loja);
+    const bothPlates = plates.filter(p => p.loja && p.lavaJato);
+    const neitherPlates = plates.filter(p => !p.loja && !p.lavaJato);
 
-    const csvContent = [headers, ...rows]
-      .map(row => row.join(','))
-      .join('\n');
+    const lines: string[] = [];
+    
+    // Loja section
+    lines.push('=== LOJA ===');
+    lines.push('Placa,Data');
+    lojaPlates.forEach(p => {
+      lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
+    });
+    lines.push(`Total Loja: ${lojaPlates.length}`);
+    lines.push('');
+    
+    // Lava Jato section
+    lines.push('=== LAVA JATO ===');
+    lines.push('Placa,Data');
+    lavaJatoPlates.forEach(p => {
+      lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
+    });
+    lines.push(`Total Lava Jato: ${lavaJatoPlates.length}`);
+    lines.push('');
+    
+    // Both section (if any)
+    if (bothPlates.length > 0) {
+      lines.push('=== LOJA + LAVA JATO ===');
+      lines.push('Placa,Data');
+      bothPlates.forEach(p => {
+        lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
+      });
+      lines.push(`Total Ambos: ${bothPlates.length}`);
+      lines.push('');
+    }
+    
+    // Neither section (if any)
+    if (neitherPlates.length > 0) {
+      lines.push('=== SEM CATEGORIA ===');
+      lines.push('Placa,Data');
+      neitherPlates.forEach(p => {
+        lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
+      });
+      lines.push(`Total Sem Categoria: ${neitherPlates.length}`);
+      lines.push('');
+    }
+    
+    lines.push('');
+    lines.push(`TOTAL GERAL: ${plates.length}`);
+
+    const csvContent = lines.join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
