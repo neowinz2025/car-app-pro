@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { ActiveStep } from '@/types/plate';
 import { toast } from 'sonner';
 import { useCamera } from '@/hooks/useCamera';
+import { usePlateRecognition } from '@/hooks/usePlateRecognition';
 
 interface ScannerViewProps {
   activeStep: ActiveStep;
@@ -17,6 +18,7 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     videoRef,
@@ -25,7 +27,24 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     startCamera,
     stopCamera,
     toggleFlashlight,
+    captureFrame,
   } = useCamera({ facingMode: 'environment' });
+
+  const handlePlateDetected = useCallback((plate: string) => {
+    if (!activeStep) return;
+    
+    const success = onAddPlate(plate);
+    if (success) {
+      toast.success('Placa detectada!', {
+        description: plate.toUpperCase(),
+      });
+    }
+  }, [activeStep, onAddPlate]);
+
+  const { recognizePlate, isProcessing, resetLastPlate } = usePlateRecognition({
+    onPlateDetected: handlePlateDetected,
+    confidenceThreshold: 0.7,
+  });
 
   const handleScanToggle = async () => {
     if (!activeStep) {
@@ -71,12 +90,39 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     }
   };
 
-  // Stop camera when component unmounts or step changes
+  // Auto-scan when camera is active
+  useEffect(() => {
+    if (isActive && activeStep) {
+      // Start scanning interval
+      scanIntervalRef.current = setInterval(async () => {
+        const frame = captureFrame();
+        if (frame) {
+          await recognizePlate(frame);
+        }
+      }, 2500); // Scan every 2.5 seconds
+    } else {
+      // Clear interval when camera stops
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+    };
+  }, [isActive, activeStep, captureFrame, recognizePlate]);
+
+  // Stop camera and reset when component unmounts or step changes
   useEffect(() => {
     return () => {
       stopCamera();
+      resetLastPlate();
     };
-  }, [stopCamera]);
+  }, [stopCamera, resetLastPlate]);
 
   return (
     <div className="flex flex-col h-full px-4 py-4 gap-4">
@@ -135,8 +181,19 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
               <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
               
               {/* Scan line animation */}
-              <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line" />
+              <div className={cn(
+                "absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line",
+                isProcessing && "bg-warning"
+              )} />
             </div>
+            
+            {/* Processing indicator */}
+            {isProcessing && (
+              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                <span className="text-sm font-medium">Analisando...</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -234,10 +291,13 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       <div className="flex items-center justify-center gap-2 py-2">
         <div className={cn(
           "w-2 h-2 rounded-full",
+          isActive && isProcessing ? "bg-warning animate-pulse" :
           isActive ? "bg-success animate-pulse" : "bg-muted-foreground"
         )} />
         <span className="text-sm text-muted-foreground">
-          {isActive ? 'Câmera ativa' : error ? 'Erro na câmera' : 'Aguardando'}
+          {isActive && isProcessing ? 'Reconhecendo placa...' :
+           isActive ? 'Escaneando automaticamente' : 
+           error ? 'Erro na câmera' : 'Aguardando'}
         </span>
       </div>
     </div>
