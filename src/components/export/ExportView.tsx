@@ -28,11 +28,10 @@ export function ExportView({ plates, onFillStep }: ExportViewProps) {
       return;
     }
 
-    const headers = ['Placa', 'Data', 'Hora', 'Loja', 'Lava Jato'];
+    const headers = ['Placa', 'Data', 'Loja', 'Lava Jato'];
     const rows = plates.map(p => [
       formatPlate(p.plate),
       format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }),
-      format(p.timestamp, 'HH:mm', { locale: ptBR }),
       p.loja ? 'Sim' : 'Não',
       p.lavaJato ? 'Sim' : 'Não',
     ]);
