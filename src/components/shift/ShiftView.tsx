@@ -12,7 +12,9 @@ import {
   Save,
   History,
   ChevronLeft,
-  Calendar
+  Calendar,
+  Copy,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,6 +24,7 @@ import { ShiftType, SHIFT_LABELS } from '@/types/shift';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export function ShiftView() {
   const [showHistory, setShowHistory] = useState(false);
@@ -38,10 +41,71 @@ export function ShiftView() {
     setShiftType,
   } = useShiftHandover();
 
+  const [copied, setCopied] = useState(false);
   const shiftTypes: ShiftType[] = ['manha', 'noite', 'madrugada'];
 
   const handleSave = async () => {
     await saveShift(registeredBy || undefined);
+  };
+
+  const formatForWhatsApp = () => {
+    const date = format(new Date(), 'dd/MM/yyyy', { locale: ptBR });
+    const time = format(new Date(), 'HH:mm', { locale: ptBR });
+    
+    const total = currentShift.di_disponivel + 
+                  currentShift.lm_locacao_mensal + 
+                  currentShift.le_locacao_diaria + 
+                  currentShift.fs_fora_servico + 
+                  currentShift.ne_oficina_externa + 
+                  currentShift.fe_funilaria_externa + 
+                  currentShift.tg_triagem_manutencao;
+
+    const message = `📋 *PASSAGEM DE TURNO*
+📅 ${date} às ${time}
+🕐 Turno: *${SHIFT_LABELS[currentShift.shift_type]}*
+
+━━━━━━━━━━━━━━━━━━━━
+🚗 *STATUS DA FROTA*
+━━━━━━━━━━━━━━━━━━━━
+🟢 DI - Disponível: *${currentShift.di_disponivel}*
+🔵 LM - Locação Mensal: *${currentShift.lm_locacao_mensal}*
+🟡 LE - Locação Diária: *${currentShift.le_locacao_diaria}*
+🔴 FS - Fora de Serviço: *${currentShift.fs_fora_servico}*
+🔷 NE - Oficina Externa: *${currentShift.ne_oficina_externa}*
+🟣 FE - Funilaria Externa: *${currentShift.fe_funilaria_externa}*
+⚫ TG - Triagem Manutenção: *${currentShift.tg_triagem_manutencao}*
+📊 *TOTAL: ${total}*
+
+━━━━━━━━━━━━━━━━━━━━
+📝 *OUTRAS INFORMAÇÕES*
+━━━━━━━━━━━━━━━━━━━━
+⛽ Carros Abastecidos: *${currentShift.carros_abastecidos}*
+💧 Veículos Lavados: *${currentShift.veiculos_lavados}*
+🚙 Veículos Sujos na Gaveta: *${currentShift.veiculos_sujos_gaveta}*
+👶 Cadeirinhas: *${currentShift.qnt_cadeirinhas}*
+🍼 Bebê Conforto: *${currentShift.qnt_bebe_conforto}*
+🪑 Assentos de Elevação: *${currentShift.qnt_assentos_elevacao}*
+
+━━━━━━━━━━━━━━━━━━━━
+📊 *RESERVAS*
+━━━━━━━━━━━━━━━━━━━━
+✅ Atendidas: *${currentShift.reservas_atendidas}*
+⏳ Pendentes: *${currentShift.reservas_pendentes}*
+${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
+
+    return message;
+  };
+
+  const handleCopyToClipboard = async () => {
+    const message = formatForWhatsApp();
+    try {
+      await navigator.clipboard.writeText(message);
+      setCopied(true);
+      toast.success('Copiado!', { description: 'Cole no WhatsApp' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      toast.error('Erro ao copiar');
+    }
   };
 
   if (showHistory) {
@@ -309,6 +373,25 @@ export function ShiftView() {
             className="rounded-xl"
           />
         </div>
+
+        {/* Copy to WhatsApp Button */}
+        <Button
+          onClick={handleCopyToClipboard}
+          variant="outline"
+          className="w-full h-12 rounded-xl border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 font-semibold"
+        >
+          {copied ? (
+            <>
+              <Check className="w-5 h-5 mr-2" />
+              COPIADO!
+            </>
+          ) : (
+            <>
+              <Copy className="w-5 h-5 mr-2" />
+              COPIAR PARA WHATSAPP
+            </>
+          )}
+        </Button>
 
         {/* Save Button */}
         <Button
