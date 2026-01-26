@@ -10,9 +10,10 @@ import { cn } from '@/lib/utils';
 interface ExportViewProps {
   plates: PlateRecord[];
   onFillStep: (step: 'loja' | 'lavaJato') => void;
+  onClearPlates: () => void;
 }
 
-export function ExportView({ plates, onFillStep }: ExportViewProps) {
+export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProps) {
   const [showPreview, setShowPreview] = useState(false);
 
   const formatPlate = (plate: string) => {
@@ -89,8 +90,11 @@ export function ExportView({ plates, onFillStep }: ExportViewProps) {
     URL.revokeObjectURL(url);
 
     toast.success('Arquivo exportado!', {
-      description: `${plates.length} placas exportadas`,
+      description: `${plates.length} placas exportadas e limpas`,
     });
+
+    // Clear plates after export
+    onClearPlates();
   };
 
   return (

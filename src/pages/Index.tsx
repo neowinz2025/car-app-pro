@@ -5,6 +5,7 @@ import { ScannerView } from '@/components/scanner/ScannerView';
 import { PlatesList } from '@/components/plates/PlatesList';
 import { StatsView } from '@/components/stats/StatsView';
 import { ExportView } from '@/components/export/ExportView';
+import { ShiftView } from '@/components/shift/ShiftView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
 
@@ -44,7 +45,9 @@ const Index = () => {
       case 'stats':
         return <StatsView plates={plates} stats={stats} />;
       case 'export':
-        return <ExportView plates={plates} onFillStep={fillStep} />;
+        return <ExportView plates={plates} onFillStep={fillStep} onClearPlates={clearPlates} />;
+      case 'shift':
+        return <ShiftView />;
       default:
         return null;
     }

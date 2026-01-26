@@ -14,7 +14,78 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      shift_handovers: {
+        Row: {
+          carros_abastecidos: number
+          created_at: string
+          di_disponivel: number
+          fe_funilaria_externa: number
+          fs_fora_servico: number
+          id: string
+          le_locacao_diaria: number
+          lm_locacao_mensal: number
+          ne_oficina_externa: number
+          qnt_assentos_elevacao: number
+          qnt_bebe_conforto: number
+          qnt_cadeirinhas: number
+          registered_at: string
+          registered_by: string | null
+          reservas_atendidas: number
+          reservas_pendentes: number
+          shift_date: string
+          shift_type: string
+          tg_triagem_manutencao: number
+          veiculos_lavados: number
+          veiculos_sujos_gaveta: number
+        }
+        Insert: {
+          carros_abastecidos?: number
+          created_at?: string
+          di_disponivel?: number
+          fe_funilaria_externa?: number
+          fs_fora_servico?: number
+          id?: string
+          le_locacao_diaria?: number
+          lm_locacao_mensal?: number
+          ne_oficina_externa?: number
+          qnt_assentos_elevacao?: number
+          qnt_bebe_conforto?: number
+          qnt_cadeirinhas?: number
+          registered_at?: string
+          registered_by?: string | null
+          reservas_atendidas?: number
+          reservas_pendentes?: number
+          shift_date?: string
+          shift_type: string
+          tg_triagem_manutencao?: number
+          veiculos_lavados?: number
+          veiculos_sujos_gaveta?: number
+        }
+        Update: {
+          carros_abastecidos?: number
+          created_at?: string
+          di_disponivel?: number
+          fe_funilaria_externa?: number
+          fs_fora_servico?: number
+          id?: string
+          le_locacao_diaria?: number
+          lm_locacao_mensal?: number
+          ne_oficina_externa?: number
+          qnt_assentos_elevacao?: number
+          qnt_bebe_conforto?: number
+          qnt_cadeirinhas?: number
+          registered_at?: string
+          registered_by?: string | null
+          reservas_atendidas?: number
+          reservas_pendentes?: number
+          shift_date?: string
+          shift_type?: string
+          tg_triagem_manutencao?: number
+          veiculos_lavados?: number
+          veiculos_sujos_gaveta?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

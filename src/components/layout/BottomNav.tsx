@@ -1,7 +1,7 @@
-import { Camera, List, BarChart3, Download } from 'lucide-react';
+import { Camera, List, BarChart3, Download, ClipboardList } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-export type TabType = 'scanner' | 'plates' | 'stats' | 'export';
+export type TabType = 'scanner' | 'plates' | 'stats' | 'export' | 'shift';
 
 interface BottomNavProps {
   activeTab: TabType;
@@ -13,6 +13,7 @@ const tabs = [
   { id: 'plates' as const, icon: List, label: 'Placas' },
   { id: 'stats' as const, icon: BarChart3, label: 'Stats' },
   { id: 'export' as const, icon: Download, label: 'Exportar' },
+  { id: 'shift' as const, icon: ClipboardList, label: 'Turno' },
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
