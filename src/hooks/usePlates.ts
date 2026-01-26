@@ -36,6 +36,13 @@ export function usePlates() {
     
     if (normalizedPlate.length < 7) return false;
 
+    // Check if plate already exists to prevent duplicates
+    const plateExists = plates.some(p => p.plate === normalizedPlate);
+    if (plateExists) {
+      console.log(`Placa ${normalizedPlate} já foi registrada`);
+      return false;
+    }
+
     const newPlate: PlateRecord = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       plate: normalizedPlate,
@@ -51,7 +58,7 @@ export function usePlates() {
     });
 
     return true;
-  }, [activeStep]);
+  }, [activeStep, plates]);
 
   const removePlate = useCallback((id: string) => {
     setPlates(prev => {
