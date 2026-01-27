@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Eye, Store, Droplets, Check } from 'lucide-react';
+import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlateRecord } from '@/types/plate';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { cn } from '@/lib/utils';
+import { jsPDF } from 'jspdf';
 
 interface ExportViewProps {
   plates: PlateRecord[];
@@ -23,56 +23,62 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     return plate;
   };
 
+  const getCategorizedPlates = () => {
+    return {
+      loja: plates.filter(p => p.loja && !p.lavaJato),
+      lavaJato: plates.filter(p => p.lavaJato && !p.loja),
+      both: plates.filter(p => p.loja && p.lavaJato),
+      neither: plates.filter(p => !p.loja && !p.lavaJato),
+    };
+  };
+
   const handleExportCSV = () => {
     if (plates.length === 0) {
       toast.error('Nenhuma placa para exportar');
       return;
     }
 
-    const lojaPlates = plates.filter(p => p.loja && !p.lavaJato);
-    const lavaJatoPlates = plates.filter(p => p.lavaJato && !p.loja);
-    const bothPlates = plates.filter(p => p.loja && p.lavaJato);
-    const neitherPlates = plates.filter(p => !p.loja && !p.lavaJato);
+    const { loja, lavaJato, both, neither } = getCategorizedPlates();
 
     const lines: string[] = [];
     
     // Loja section
     lines.push('=== LOJA ===');
     lines.push('Placa,Data');
-    lojaPlates.forEach(p => {
+    loja.forEach(p => {
       lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
     });
-    lines.push(`Total Loja: ${lojaPlates.length}`);
+    lines.push(`Total Loja: ${loja.length}`);
     lines.push('');
     
     // Lava Jato section
     lines.push('=== LAVA JATO ===');
     lines.push('Placa,Data');
-    lavaJatoPlates.forEach(p => {
+    lavaJato.forEach(p => {
       lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
     });
-    lines.push(`Total Lava Jato: ${lavaJatoPlates.length}`);
+    lines.push(`Total Lava Jato: ${lavaJato.length}`);
     lines.push('');
     
     // Both section (if any)
-    if (bothPlates.length > 0) {
+    if (both.length > 0) {
       lines.push('=== LOJA + LAVA JATO ===');
       lines.push('Placa,Data');
-      bothPlates.forEach(p => {
+      both.forEach(p => {
         lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
       });
-      lines.push(`Total Ambos: ${bothPlates.length}`);
+      lines.push(`Total Ambos: ${both.length}`);
       lines.push('');
     }
     
     // Neither section (if any)
-    if (neitherPlates.length > 0) {
+    if (neither.length > 0) {
       lines.push('=== SEM CATEGORIA ===');
       lines.push('Placa,Data');
-      neitherPlates.forEach(p => {
+      neither.forEach(p => {
         lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
       });
-      lines.push(`Total Sem Categoria: ${neitherPlates.length}`);
+      lines.push(`Total Sem Categoria: ${neither.length}`);
       lines.push('');
     }
     
@@ -89,8 +95,114 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     link.click();
     URL.revokeObjectURL(url);
 
-    toast.success('Arquivo exportado!', {
-      description: `${plates.length} placas exportadas e limpas`,
+    toast.success('Arquivo CSV exportado!', {
+      description: `${plates.length} placas exportadas`,
+    });
+
+    // Clear plates after export
+    onClearPlates();
+  };
+
+  const handleExportPDF = () => {
+    if (plates.length === 0) {
+      toast.error('Nenhuma placa para exportar');
+      return;
+    }
+
+    const { loja, lavaJato, both, neither } = getCategorizedPlates();
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    let yPos = 20;
+
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RELATÓRIO DE PLACAS', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    // Date
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    const addSection = (title: string, items: PlateRecord[], color: [number, number, number]) => {
+      if (items.length === 0) return;
+
+      // Check if we need a new page
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      // Section header
+      doc.setFillColor(...color);
+      doc.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(255, 255, 255);
+      doc.text(title, margin + 4, yPos + 6);
+      yPos += 12;
+
+      // Table header
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, yPos, pageWidth - 2 * margin, 7, 'F');
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0, 0, 0);
+      doc.text('Placa', margin + 4, yPos + 5);
+      doc.text('Data', pageWidth - margin - 40, yPos + 5);
+      yPos += 10;
+
+      // Items
+      doc.setFont('helvetica', 'normal');
+      items.forEach((p, index) => {
+        if (yPos > 280) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        if (index % 2 === 0) {
+          doc.setFillColor(250, 250, 250);
+          doc.rect(margin, yPos - 3, pageWidth - 2 * margin, 7, 'F');
+        }
+
+        doc.text(formatPlate(p.plate), margin + 4, yPos + 2);
+        doc.text(format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }), pageWidth - margin - 40, yPos + 2);
+        yPos += 7;
+      });
+
+      // Total
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total: ${items.length}`, margin + 4, yPos + 5);
+      yPos += 15;
+    };
+
+    // Add sections with different colors
+    addSection('LOJA', loja, [30, 90, 60]);
+    addSection('LAVA JATO', lavaJato, [60, 130, 180]);
+    addSection('LOJA + LAVA JATO', both, [140, 100, 160]);
+    addSection('SEM CATEGORIA', neither, [120, 120, 120]);
+
+    // Summary
+    if (yPos > 260) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFillColor(30, 58, 95);
+    doc.rect(margin, yPos, pageWidth - 2 * margin, 12, 'F');
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text(`TOTAL GERAL: ${plates.length} PLACAS`, pageWidth / 2, yPos + 8, { align: 'center' });
+
+    // Save
+    doc.save(`placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
+
+    toast.success('Arquivo PDF exportado!', {
+      description: `${plates.length} placas exportadas`,
     });
 
     // Clear plates after export
@@ -165,6 +277,16 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
             <FileSpreadsheet className="w-5 h-5 mr-3" />
             <span className="flex-1 text-left">Baixar CSV</span>
             <span className="text-xs opacity-70">.csv</span>
+          </Button>
+
+          <Button
+            className="w-full h-12 rounded-xl justify-start bg-red-600 hover:bg-red-700"
+            onClick={handleExportPDF}
+            disabled={plates.length === 0}
+          >
+            <FileText className="w-5 h-5 mr-3" />
+            <span className="flex-1 text-left">Baixar PDF</span>
+            <span className="text-xs opacity-70">.pdf</span>
           </Button>
         </div>
       </div>

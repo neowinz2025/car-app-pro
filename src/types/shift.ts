@@ -7,12 +7,15 @@ export interface ShiftHandover {
   
   // Status da Frota
   di_disponivel: number;
-  lm_locacao_mensal: number;
-  le_locacao_diaria: number;
   fs_fora_servico: number;
   ne_oficina_externa: number;
   fe_funilaria_externa: number;
-  tg_triagem_manutencao: number;
+  do_retorno_oficina: number;
+  
+  // Legacy fields (still in DB but not used in UI)
+  lm_locacao_mensal?: number;
+  le_locacao_diaria?: number;
+  tg_triagem_manutencao?: number;
   
   // Outras Informações
   carros_abastecidos: number;
@@ -37,14 +40,12 @@ export const SHIFT_LABELS: Record<ShiftType, string> = {
   madrugada: 'Madrugada',
 };
 
-export const DEFAULT_SHIFT_VALUES: Omit<ShiftHandover, 'id' | 'shift_type' | 'shift_date' | 'registered_at' | 'registered_by' | 'created_at'> = {
+export const DEFAULT_SHIFT_VALUES: Omit<ShiftHandover, 'id' | 'shift_type' | 'shift_date' | 'registered_at' | 'registered_by' | 'created_at' | 'lm_locacao_mensal' | 'le_locacao_diaria' | 'tg_triagem_manutencao'> = {
   di_disponivel: 0,
-  lm_locacao_mensal: 0,
-  le_locacao_diaria: 0,
   fs_fora_servico: 0,
   ne_oficina_externa: 0,
   fe_funilaria_externa: 0,
-  tg_triagem_manutencao: 0,
+  do_retorno_oficina: 0,
   carros_abastecidos: 0,
   veiculos_lavados: 0,
   veiculos_sujos_gaveta: 0,
