@@ -44,6 +44,10 @@ export function useShiftHandover() {
     setCurrentShift(prev => ({ ...prev, [field]: value }));
   }, []);
 
+  const setFieldValue = useCallback((field: keyof ShiftHandover, value: number) => {
+    setCurrentShift(prev => ({ ...prev, [field]: value }));
+  }, []);
+
   const incrementField = useCallback((field: keyof ShiftHandover) => {
     setCurrentShift(prev => ({
       ...prev,
@@ -107,6 +111,7 @@ export function useShiftHandover() {
     updateField,
     incrementField,
     decrementField,
+    setFieldValue,
     saveShift,
     setShiftType,
     fetchHistory,

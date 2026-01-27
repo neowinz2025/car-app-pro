@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -10,6 +11,7 @@ interface ShiftCounterProps {
   value: number;
   onIncrement: () => void;
   onDecrement: () => void;
+  onValueChange?: (value: number) => void;
   colorClass?: string;
 }
 
@@ -20,8 +22,28 @@ export function ShiftCounter({
   value,
   onIncrement,
   onDecrement,
+  onValueChange,
   colorClass = 'bg-primary',
 }: ShiftCounterProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [inputValue, setInputValue] = useState(value.toString());
+
+  const handleInputBlur = () => {
+    setIsEditing(false);
+    const numValue = parseInt(inputValue, 10);
+    if (!isNaN(numValue) && numValue >= 0 && onValueChange) {
+      onValueChange(numValue);
+    } else {
+      setInputValue(value.toString());
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleInputBlur();
+    }
+  };
+
   return (
     <div className="flex items-center justify-between py-2 px-3 bg-card rounded-xl border border-border">
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -44,11 +66,35 @@ export function ShiftCounter({
           <Minus className="w-4 h-4" />
         </Button>
         
-        <div className="w-12 h-8 bg-yellow-400 rounded-lg flex items-center justify-center">
-          <span className="font-bold text-black text-sm">
-            {value.toString().padStart(2, '0')}
-          </span>
-        </div>
+        {isEditing && onValueChange ? (
+          <input
+            type="number"
+            min="0"
+            value={inputValue}
+            onChange={(e) => setInputValue(e.target.value)}
+            onBlur={handleInputBlur}
+            onKeyDown={handleInputKeyDown}
+            autoFocus
+            className="w-12 h-8 bg-yellow-400 rounded-lg text-center font-bold text-black text-sm border-none outline-none focus:ring-2 focus:ring-primary"
+          />
+        ) : (
+          <div 
+            className={cn(
+              "w-12 h-8 bg-yellow-400 rounded-lg flex items-center justify-center",
+              onValueChange && "cursor-pointer hover:bg-yellow-300"
+            )}
+            onClick={() => {
+              if (onValueChange) {
+                setInputValue(value.toString());
+                setIsEditing(true);
+              }
+            }}
+          >
+            <span className="font-bold text-black text-sm">
+              {value.toString().padStart(2, '0')}
+            </span>
+          </div>
+        )}
         
         <Button
           variant="ghost"

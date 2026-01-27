@@ -19,6 +19,7 @@ export type Database = {
           carros_abastecidos: number
           created_at: string
           di_disponivel: number
+          do_retorno_oficina: number
           fe_funilaria_externa: number
           fs_fora_servico: number
           id: string
@@ -42,6 +43,7 @@ export type Database = {
           carros_abastecidos?: number
           created_at?: string
           di_disponivel?: number
+          do_retorno_oficina?: number
           fe_funilaria_externa?: number
           fs_fora_servico?: number
           id?: string
@@ -65,6 +67,7 @@ export type Database = {
           carros_abastecidos?: number
           created_at?: string
           di_disponivel?: number
+          do_retorno_oficina?: number
           fe_funilaria_externa?: number
           fs_fora_servico?: number
           id?: string

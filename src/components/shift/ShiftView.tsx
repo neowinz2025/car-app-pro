@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { 
   Car, 
-  Clock, 
   Wrench, 
   Building2, 
   Fuel, 
@@ -14,7 +13,8 @@ import {
   ChevronLeft,
   Calendar,
   Copy,
-  Check
+  Check,
+  RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,6 +37,7 @@ export function ShiftView() {
     isSaving,
     incrementField,
     decrementField,
+    setFieldValue,
     saveShift,
     setShiftType,
   } = useShiftHandover();
@@ -53,27 +54,23 @@ export function ShiftView() {
     const time = format(new Date(), 'HH:mm', { locale: ptBR });
     
     const total = currentShift.di_disponivel + 
-                  currentShift.lm_locacao_mensal + 
-                  currentShift.le_locacao_diaria + 
                   currentShift.fs_fora_servico + 
                   currentShift.ne_oficina_externa + 
                   currentShift.fe_funilaria_externa + 
-                  currentShift.tg_triagem_manutencao;
+                  currentShift.do_retorno_oficina;
 
     const message = `📋 *PASSAGEM DE TURNO*
 📅 ${date} às ${time}
-🕐 Turno: *${SHIFT_LABELS[currentShift.shift_type]}*
+🕐 Turno: *${SHIFT_LABELS[currentShift.shift_type as ShiftType]}*
 
 ━━━━━━━━━━━━━━━━━━━━
 🚗 *STATUS DA FROTA*
 ━━━━━━━━━━━━━━━━━━━━
 🟢 DI - Disponível: *${currentShift.di_disponivel}*
-🔵 LM - Locação Mensal: *${currentShift.lm_locacao_mensal}*
-🟡 LE - Locação Diária: *${currentShift.le_locacao_diaria}*
 🔴 FS - Fora de Serviço: *${currentShift.fs_fora_servico}*
 🔷 NE - Oficina Externa: *${currentShift.ne_oficina_externa}*
 🟣 FE - Funilaria Externa: *${currentShift.fe_funilaria_externa}*
-⚫ TG - Triagem Manutenção: *${currentShift.tg_triagem_manutencao}*
+🔵 DO - Retorno de Oficina: *${currentShift.do_retorno_oficina}*
 📊 *TOTAL: ${total}*
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -203,7 +200,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
           <Calendar className="w-4 h-4" />
           <span>
             {format(new Date(), 'dd/MM/yyyy', { locale: ptBR })} às{' '}
-            <span className="font-bold">{SHIFT_LABELS[currentShift.shift_type].toLowerCase()}</span>
+            <span className="font-bold">{SHIFT_LABELS[currentShift.shift_type as ShiftType].toLowerCase()}</span>
           </span>
         </div>
       </div>
@@ -222,25 +219,8 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.di_disponivel}
               onIncrement={() => incrementField('di_disponivel')}
               onDecrement={() => decrementField('di_disponivel')}
+              onValueChange={(v) => setFieldValue('di_disponivel', v)}
               colorClass="bg-green-600"
-            />
-            <ShiftCounter
-              icon={Car}
-              code="LM"
-              label="Locação Mensal"
-              value={currentShift.lm_locacao_mensal}
-              onIncrement={() => incrementField('lm_locacao_mensal')}
-              onDecrement={() => decrementField('lm_locacao_mensal')}
-              colorClass="bg-blue-600"
-            />
-            <ShiftCounter
-              icon={Clock}
-              code="LE"
-              label="Locação Diária"
-              value={currentShift.le_locacao_diaria}
-              onIncrement={() => incrementField('le_locacao_diaria')}
-              onDecrement={() => decrementField('le_locacao_diaria')}
-              colorClass="bg-yellow-600"
             />
             <ShiftCounter
               icon={Wrench}
@@ -249,6 +229,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.fs_fora_servico}
               onIncrement={() => incrementField('fs_fora_servico')}
               onDecrement={() => decrementField('fs_fora_servico')}
+              onValueChange={(v) => setFieldValue('fs_fora_servico', v)}
               colorClass="bg-red-600"
             />
             <ShiftCounter
@@ -258,6 +239,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.ne_oficina_externa}
               onIncrement={() => incrementField('ne_oficina_externa')}
               onDecrement={() => decrementField('ne_oficina_externa')}
+              onValueChange={(v) => setFieldValue('ne_oficina_externa', v)}
               colorClass="bg-blue-500"
             />
             <ShiftCounter
@@ -267,16 +249,18 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.fe_funilaria_externa}
               onIncrement={() => incrementField('fe_funilaria_externa')}
               onDecrement={() => decrementField('fe_funilaria_externa')}
+              onValueChange={(v) => setFieldValue('fe_funilaria_externa', v)}
               colorClass="bg-purple-600"
             />
             <ShiftCounter
-              icon={Car}
-              code="TG"
-              label="Triagem de Manutenção"
-              value={currentShift.tg_triagem_manutencao}
-              onIncrement={() => incrementField('tg_triagem_manutencao')}
-              onDecrement={() => decrementField('tg_triagem_manutencao')}
-              colorClass="bg-gray-600"
+              icon={RotateCcw}
+              code="DO"
+              label="Retorno de Oficina"
+              value={currentShift.do_retorno_oficina}
+              onIncrement={() => incrementField('do_retorno_oficina')}
+              onDecrement={() => decrementField('do_retorno_oficina')}
+              onValueChange={(v) => setFieldValue('do_retorno_oficina', v)}
+              colorClass="bg-cyan-600"
             />
           </div>
         </div>
@@ -293,6 +277,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.carros_abastecidos}
               onIncrement={() => incrementField('carros_abastecidos')}
               onDecrement={() => decrementField('carros_abastecidos')}
+              onValueChange={(v) => setFieldValue('carros_abastecidos', v)}
               colorClass="bg-green-500"
             />
             <ShiftCounter
@@ -301,6 +286,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.veiculos_lavados}
               onIncrement={() => incrementField('veiculos_lavados')}
               onDecrement={() => decrementField('veiculos_lavados')}
+              onValueChange={(v) => setFieldValue('veiculos_lavados', v)}
               colorClass="bg-blue-500"
             />
             <ShiftCounter
@@ -309,6 +295,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.veiculos_sujos_gaveta}
               onIncrement={() => incrementField('veiculos_sujos_gaveta')}
               onDecrement={() => decrementField('veiculos_sujos_gaveta')}
+              onValueChange={(v) => setFieldValue('veiculos_sujos_gaveta', v)}
               colorClass="bg-yellow-500"
             />
             <ShiftCounter
@@ -317,6 +304,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.qnt_cadeirinhas}
               onIncrement={() => incrementField('qnt_cadeirinhas')}
               onDecrement={() => decrementField('qnt_cadeirinhas')}
+              onValueChange={(v) => setFieldValue('qnt_cadeirinhas', v)}
               colorClass="bg-pink-500"
             />
             <ShiftCounter
@@ -325,6 +313,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.qnt_bebe_conforto}
               onIncrement={() => incrementField('qnt_bebe_conforto')}
               onDecrement={() => decrementField('qnt_bebe_conforto')}
+              onValueChange={(v) => setFieldValue('qnt_bebe_conforto', v)}
               colorClass="bg-pink-600"
             />
             <ShiftCounter
@@ -333,6 +322,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.qnt_assentos_elevacao}
               onIncrement={() => incrementField('qnt_assentos_elevacao')}
               onDecrement={() => decrementField('qnt_assentos_elevacao')}
+              onValueChange={(v) => setFieldValue('qnt_assentos_elevacao', v)}
               colorClass="bg-pink-400"
             />
           </div>
@@ -350,6 +340,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.reservas_atendidas}
               onIncrement={() => incrementField('reservas_atendidas')}
               onDecrement={() => decrementField('reservas_atendidas')}
+              onValueChange={(v) => setFieldValue('reservas_atendidas', v)}
               colorClass="bg-green-500"
             />
             <ShiftCounter
@@ -358,6 +349,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
               value={currentShift.reservas_pendentes}
               onIncrement={() => incrementField('reservas_pendentes')}
               onDecrement={() => decrementField('reservas_pendentes')}
+              onValueChange={(v) => setFieldValue('reservas_pendentes', v)}
               colorClass="bg-blue-500"
             />
           </div>
