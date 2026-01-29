@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { Store, Droplets, Trash2, Search, X } from 'lucide-react';
+import { Store, Droplets, Trash2, Search, X, History } from 'lucide-react';
 import { PlateRecord } from '@/types/plate';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { PlatesHistoryView } from './PlatesHistoryView';
 
 interface PlatesListProps {
   plates: PlateRecord[];
@@ -16,6 +17,7 @@ interface PlatesListProps {
 
 export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates }: PlatesListProps) {
   const [search, setSearch] = useState('');
+  const [showHistory, setShowHistory] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
   const filteredPlates = plates.filter(p => 
@@ -29,26 +31,46 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
     return plate;
   };
 
+  if (showHistory) {
+    return (
+      <PlatesHistoryView 
+        plates={plates} 
+        onBack={() => setShowHistory(false)} 
+        onClearPlates={onClearPlates}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Search */}
       <div className="sticky top-0 z-10 bg-background px-4 py-3 border-b border-border">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar placa..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-11 rounded-xl bg-card"
-          />
-          {search && (
-            <button
-              onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar placa..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 h-11 rounded-xl bg-card"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowHistory(true)}
+            className="h-11 w-11 rounded-xl"
+          >
+            <History className="w-5 h-5" />
+          </Button>
         </div>
       </div>
 

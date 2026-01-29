@@ -39,63 +39,70 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     }
 
     const { loja, lavaJato, both, neither } = getCategorizedPlates();
+    const dateStr = format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR });
 
     const lines: string[] = [];
     
-    // Loja section
-    lines.push('=== LOJA ===');
-    lines.push('Placa,Data');
-    loja.forEach(p => {
-      lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
-    });
-    lines.push(`Total Loja: ${loja.length}`);
+    // Header
+    lines.push('════════════════════════════════════════════════════════');
+    lines.push('                    RELATÓRIO DE PLACAS                  ');
+    lines.push(`                   Gerado em: ${dateStr}                 `);
+    lines.push('════════════════════════════════════════════════════════');
     lines.push('');
     
-    // Lava Jato section
-    lines.push('=== LAVA JATO ===');
-    lines.push('Placa,Data');
-    lavaJato.forEach(p => {
-      lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
-    });
-    lines.push(`Total Lava Jato: ${lavaJato.length}`);
-    lines.push('');
-    
-    // Both section (if any)
-    if (both.length > 0) {
-      lines.push('=== LOJA + LAVA JATO ===');
-      lines.push('Placa,Data');
-      both.forEach(p => {
-        lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
-      });
-      lines.push(`Total Ambos: ${both.length}`);
+    // Helper function to add section
+    const addSection = (title: string, items: typeof plates, emoji: string) => {
+      if (items.length === 0) return;
+      
       lines.push('');
-    }
-    
-    // Neither section (if any)
-    if (neither.length > 0) {
-      lines.push('=== SEM CATEGORIA ===');
-      lines.push('Placa,Data');
-      neither.forEach(p => {
-        lines.push(`${formatPlate(p.plate)},${format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR })}`);
+      lines.push(`┌─────────────────────────────────────────────────────────┐`);
+      lines.push(`│  ${emoji} ${title.padEnd(52)}│`);
+      lines.push(`├─────────────────────────────────────────────────────────┤`);
+      lines.push(`│  PLACA          │  DATA          │  HORA               │`);
+      lines.push(`├─────────────────────────────────────────────────────────┤`);
+      
+      items.forEach(p => {
+        const plateFormatted = formatPlate(p.plate).padEnd(14);
+        const dateFormatted = format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }).padEnd(13);
+        const timeFormatted = format(p.timestamp, 'HH:mm', { locale: ptBR }).padEnd(18);
+        lines.push(`│  ${plateFormatted}│  ${dateFormatted}│  ${timeFormatted}│`);
       });
-      lines.push(`Total Sem Categoria: ${neither.length}`);
-      lines.push('');
-    }
+      
+      lines.push(`├─────────────────────────────────────────────────────────┤`);
+      lines.push(`│  TOTAL: ${String(items.length).padStart(3)} placas                                     │`);
+      lines.push(`└─────────────────────────────────────────────────────────┘`);
+    };
     
+    // Add sections
+    addSection('LOJA', loja, '🏪');
+    addSection('LAVA JATO', lavaJato, '💧');
+    addSection('LOJA + LAVA JATO', both, '🔄');
+    addSection('SEM CATEGORIA', neither, '❓');
+    
+    // Summary
     lines.push('');
-    lines.push(`TOTAL GERAL: ${plates.length}`);
+    lines.push('════════════════════════════════════════════════════════');
+    lines.push(`                    RESUMO GERAL                         `);
+    lines.push('════════════════════════════════════════════════════════');
+    lines.push(`  🏪 Loja:            ${String(loja.length).padStart(4)} placas`);
+    lines.push(`  💧 Lava Jato:       ${String(lavaJato.length).padStart(4)} placas`);
+    lines.push(`  🔄 Ambos:           ${String(both.length).padStart(4)} placas`);
+    lines.push(`  ❓ Sem Categoria:   ${String(neither.length).padStart(4)} placas`);
+    lines.push('────────────────────────────────────────────────────────');
+    lines.push(`  📊 TOTAL GERAL:     ${String(plates.length).padStart(4)} placas`);
+    lines.push('════════════════════════════════════════════════════════');
 
     const csvContent = lines.join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.csv`;
+    link.download = `relatorio_placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.txt`;
     link.click();
     URL.revokeObjectURL(url);
 
-    toast.success('Arquivo CSV exportado!', {
+    toast.success('Relatório exportado!', {
       description: `${plates.length} placas exportadas`,
     });
 
@@ -112,96 +119,140 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     const { loja, lavaJato, both, neither } = getCategorizedPlates();
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
+    const margin = 15;
     let yPos = 20;
 
+    // Title Background
+    doc.setFillColor(30, 58, 95);
+    doc.rect(0, 0, pageWidth, 35, 'F');
+
     // Title
-    doc.setFontSize(18);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('RELATÓRIO DE PLACAS', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    doc.setTextColor(255, 255, 255);
+    doc.text('RELATÓRIO DE PLACAS', pageWidth / 2, 18, { align: 'center' });
 
     // Date
-    doc.setFontSize(10);
+    doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 15;
+    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageWidth / 2, 28, { align: 'center' });
+    yPos = 45;
 
-    const addSection = (title: string, items: PlateRecord[], color: [number, number, number]) => {
+    const addSection = (title: string, items: PlateRecord[], headerColor: [number, number, number], icon: string) => {
       if (items.length === 0) return;
 
       // Check if we need a new page
-      if (yPos > 250) {
+      if (yPos > 240) {
         doc.addPage();
         yPos = 20;
       }
 
-      // Section header
-      doc.setFillColor(...color);
-      doc.rect(margin, yPos, pageWidth - 2 * margin, 8, 'F');
-      doc.setFontSize(12);
+      // Section header with rounded style
+      doc.setFillColor(...headerColor);
+      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 12, 2, 2, 'F');
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(255, 255, 255);
-      doc.text(title, margin + 4, yPos + 6);
-      yPos += 12;
+      doc.text(`${icon}  ${title}`, margin + 6, yPos + 8);
+      doc.text(`${items.length} placas`, pageWidth - margin - 6, yPos + 8, { align: 'right' });
+      yPos += 18;
 
       // Table header
-      doc.setFillColor(240, 240, 240);
-      doc.rect(margin, yPos, pageWidth - 2 * margin, 7, 'F');
+      doc.setFillColor(245, 247, 250);
+      doc.rect(margin, yPos, pageWidth - 2 * margin, 10, 'F');
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0, 0, 0);
-      doc.text('Placa', margin + 4, yPos + 5);
-      doc.text('Data', pageWidth - margin - 40, yPos + 5);
-      yPos += 10;
+      doc.setTextColor(80, 80, 80);
+      doc.text('PLACA', margin + 8, yPos + 7);
+      doc.text('DATA', margin + 60, yPos + 7);
+      doc.text('HORA', margin + 110, yPos + 7);
+      yPos += 12;
 
-      // Items
+      // Items in grid
       doc.setFont('helvetica', 'normal');
+      doc.setTextColor(40, 40, 40);
+      
       items.forEach((p, index) => {
-        if (yPos > 280) {
+        if (yPos > 275) {
           doc.addPage();
           yPos = 20;
         }
 
+        // Alternating row background
         if (index % 2 === 0) {
-          doc.setFillColor(250, 250, 250);
-          doc.rect(margin, yPos - 3, pageWidth - 2 * margin, 7, 'F');
+          doc.setFillColor(252, 252, 253);
+          doc.rect(margin, yPos - 4, pageWidth - 2 * margin, 8, 'F');
         }
 
-        doc.text(formatPlate(p.plate), margin + 4, yPos + 2);
-        doc.text(format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }), pageWidth - margin - 40, yPos + 2);
-        yPos += 7;
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(formatPlate(p.plate), margin + 8, yPos + 2);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.text(format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }), margin + 60, yPos + 2);
+        doc.text(format(p.timestamp, 'HH:mm', { locale: ptBR }), margin + 110, yPos + 2);
+        yPos += 8;
       });
 
-      // Total
-      doc.setFont('helvetica', 'bold');
-      doc.text(`Total: ${items.length}`, margin + 4, yPos + 5);
-      yPos += 15;
+      // Section divider
+      yPos += 8;
     };
 
-    // Add sections with different colors
-    addSection('LOJA', loja, [30, 90, 60]);
-    addSection('LAVA JATO', lavaJato, [60, 130, 180]);
-    addSection('LOJA + LAVA JATO', both, [140, 100, 160]);
-    addSection('SEM CATEGORIA', neither, [120, 120, 120]);
+    // Add sections with different colors and icons
+    addSection('LOJA', loja, [34, 139, 34], '🏪');
+    addSection('LAVA JATO', lavaJato, [30, 144, 255], '💧');
+    addSection('LOJA + LAVA JATO', both, [138, 43, 226], '🔄');
+    addSection('SEM CATEGORIA', neither, [128, 128, 128], '❓');
 
-    // Summary
-    if (yPos > 260) {
+    // Summary section
+    if (yPos > 220) {
       doc.addPage();
       yPos = 20;
     }
 
+    yPos += 5;
+    
+    // Summary box
+    doc.setFillColor(240, 245, 250);
+    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 55, 3, 3, 'F');
+    doc.setDrawColor(30, 58, 95);
+    doc.setLineWidth(0.5);
+    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 55, 3, 3, 'S');
+    
+    yPos += 10;
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 95);
+    doc.text('RESUMO GERAL', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(60, 60, 60);
+    
+    const col1X = margin + 15;
+    const col2X = pageWidth / 2 + 10;
+    
+    doc.text(`🏪  Loja: ${loja.length} placas`, col1X, yPos);
+    doc.text(`💧  Lava Jato: ${lavaJato.length} placas`, col2X, yPos);
+    yPos += 8;
+    doc.text(`🔄  Ambos: ${both.length} placas`, col1X, yPos);
+    doc.text(`❓  Sem Categoria: ${neither.length} placas`, col2X, yPos);
+    yPos += 12;
+    
+    // Total highlight
     doc.setFillColor(30, 58, 95);
-    doc.rect(margin, yPos, pageWidth - 2 * margin, 12, 'F');
+    doc.roundedRect(margin + 40, yPos - 2, pageWidth - 2 * margin - 80, 14, 2, 2, 'F');
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(255, 255, 255);
-    doc.text(`TOTAL GERAL: ${plates.length} PLACAS`, pageWidth / 2, yPos + 8, { align: 'center' });
+    doc.text(`📊  TOTAL GERAL: ${plates.length} PLACAS`, pageWidth / 2, yPos + 8, { align: 'center' });
 
     // Save
-    doc.save(`placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
+    doc.save(`relatorio_placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
 
-    toast.success('Arquivo PDF exportado!', {
+    toast.success('PDF exportado!', {
       description: `${plates.length} placas exportadas`,
     });
 
@@ -275,8 +326,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
             disabled={plates.length === 0}
           >
             <FileSpreadsheet className="w-5 h-5 mr-3" />
-            <span className="flex-1 text-left">Baixar CSV</span>
-            <span className="text-xs opacity-70">.csv</span>
+            <span className="flex-1 text-left">Baixar Relatório TXT</span>
+            <span className="text-xs opacity-70">.txt</span>
           </Button>
 
           <Button
