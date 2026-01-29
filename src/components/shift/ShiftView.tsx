@@ -10,7 +10,6 @@ import {
   AlertCircle,
   Save,
   History,
-  ChevronLeft,
   Calendar,
   Copy,
   Check,
@@ -19,6 +18,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ShiftCounter } from './ShiftCounter';
+import { ShiftHistoryView } from './ShiftHistoryView';
 import { useShiftHandover } from '@/hooks/useShiftHandover';
 import { ShiftType, SHIFT_LABELS } from '@/types/shift';
 import { format } from 'date-fns';
@@ -107,58 +107,11 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
 
   if (showHistory) {
     return (
-      <div className="flex flex-col h-full px-4 py-4 overflow-y-auto scrollbar-hide">
-        <div className="flex items-center gap-3 mb-4">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setShowHistory(false)}
-            className="rounded-xl"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <h2 className="text-lg font-bold">Histórico de Turnos</h2>
-        </div>
-
-        {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-          </div>
-        ) : history.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            Nenhum registro encontrado
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {history.map((shift) => (
-              <div
-                key={shift.id}
-                className="bg-card rounded-xl border border-border p-4"
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-semibold">
-                    {SHIFT_LABELS[shift.shift_type as ShiftType]}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {format(new Date(shift.created_at!), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-2 text-sm">
-                  <div>Disponível: {shift.di_disponivel}</div>
-                  <div>Lavados: {shift.veiculos_lavados}</div>
-                  <div>Reservas: {shift.reservas_atendidas}</div>
-                  <div>Pendentes: {shift.reservas_pendentes}</div>
-                </div>
-                {shift.registered_by && (
-                  <div className="mt-2 text-xs text-muted-foreground">
-                    Por: {shift.registered_by}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ShiftHistoryView 
+        history={history} 
+        isLoading={isLoading} 
+        onBack={() => setShowHistory(false)} 
+      />
     );
   }
 
