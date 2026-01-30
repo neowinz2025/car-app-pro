@@ -4,8 +4,8 @@
 
 Um usuário admin foi criado com sucesso no sistema:
 
-**Usuário:** `admin`
-**Senha:** `Admin123456`
+**Usuário:** `hugo200`
+**Senha:** `Hug@9615`
 
 ---
 
@@ -26,8 +26,8 @@ http://localhost:5173/admin/login
 
 ### 2. Fazer Login
 
-1. Digite o usuário: `admin`
-2. Digite a senha: `Admin123456`
+1. Digite o usuário: `hugo200`
+2. Digite a senha: `Hug@9615`
 3. Clique em "Entrar"
 
 ### 3. Acessar o Dashboard
@@ -94,7 +94,7 @@ Após 24 horas, será necessário fazer login novamente.
 3. Problema de conexão com o banco de dados
 
 **Solução:**
-- Verifique se está usando exatamente: `admin` / `Admin123456`
+- Verifique se está usando exatamente: `hugo200` / `Hug@9615`
 - A senha é case-sensitive (maiúsculas e minúsculas importam)
 - Limpe o cache do navegador e tente novamente
 
