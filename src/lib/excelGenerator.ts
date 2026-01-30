@@ -20,7 +20,7 @@ export function generateExcelReport(options: ExcelGeneratorOptions): void {
   const sheetData: any[][] = [];
 
   sheetData.push(['BATE FISICO', '']);
-  sheetData.push([format(new Date(), 'M/d/yy', { locale: ptBR }), '']);
+  sheetData.push([format(new Date(), 'dd/MM/yyyy', { locale: ptBR }), '']);
   sheetData.push(['LAVA', 'LOJA']);
 
   const maxRows = Math.max(lavaJato.length + both.length, loja.length + both.length);
