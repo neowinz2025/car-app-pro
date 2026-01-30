@@ -25,7 +25,7 @@ interface Report {
   created_at: string;
   created_by: string;
   share_token: string;
-  plates_count: number;
+  total_plates: number;
   loja_count: number;
   lava_jato_count: number;
 }
@@ -208,7 +208,7 @@ export default function AdminDashboard() {
                             <User className="w-3 h-3" />
                             <span>{report.created_by}</span>
                             <span className="mx-2">•</span>
-                            <span>{report.plates_count} placas</span>
+                            <span>{report.total_plates} placas</span>
                             <span className="mx-2">•</span>
                             <span>🏪 {report.loja_count}</span>
                             <span className="mx-2">•</span>
