@@ -36,7 +36,7 @@ interface PlateRecord {
   timestamp: string;
   loja: boolean;
   lava_jato: boolean;
-  session_id: string;
+  session_id: string | null;
 }
 
 export default function AdminDashboard() {
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
                               {plate.lava_jato ? '✅' : '—'}
                             </td>
                             <td className="py-3 px-4 text-muted-foreground font-mono text-xs">
-                              {plate.session_id.slice(0, 8)}...
+                              {plate.session_id ? `${plate.session_id.slice(0, 8)}...` : '—'}
                             </td>
                           </tr>
                         ))}
