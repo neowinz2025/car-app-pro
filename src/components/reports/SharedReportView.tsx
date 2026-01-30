@@ -53,7 +53,7 @@ export function SharedReportView() {
 
   const formatPlate = (plate: string) => {
     if (plate.length === 7) {
-      return `${plate.slice(0, 3)}-${plate.slice(4)}`;
+      return `${plate.slice(0, 3)}-${plate.slice(3)}`;
     }
     return plate;
   };
