@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/Header';
 import { BottomNav, TabType } from '@/components/layout/BottomNav';
 import { ScannerView } from '@/components/scanner/ScannerView';
@@ -9,9 +9,11 @@ import { ShiftView } from '@/components/shift/ShiftView';
 import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
+import { toast } from 'sonner';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState<TabType>('scanner');
+  const hasShownWelcome = useRef(false);
   const {
     plates,
     activeStep,
@@ -23,6 +25,16 @@ const Index = () => {
     fillStep,
     stats,
   } = usePlates();
+
+  useEffect(() => {
+    if (!hasShownWelcome.current && plates.length > 0) {
+      hasShownWelcome.current = true;
+      toast.success('Dados recuperados!', {
+        description: `${plates.length} placas salvas foram carregadas. Continue de onde parou!`,
+        duration: 4000,
+      });
+    }
+  }, [plates.length]);
 
   const renderContent = () => {
     switch (activeTab) {
