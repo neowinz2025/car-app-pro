@@ -29,7 +29,7 @@ export function usePhysicalCountReports() {
 
   const saveReport = useCallback(async (
     plates: PlateRecord[],
-    createdBy: string = 'Sistema'
+    createdBy: string
   ): Promise<{ success: boolean; shareToken?: string; reportId?: string }> => {
     setLoading(true);
     setError(null);

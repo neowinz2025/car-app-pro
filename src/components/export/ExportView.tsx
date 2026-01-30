@@ -19,7 +19,7 @@ interface ExportViewProps {
 export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [shareLink, setShareLink] = useState<string>('');
-  const [createdBy, setCreatedBy] = useState<string>('Sistema');
+  const [createdBy, setCreatedBy] = useState<string>('');
   const { saveReport } = usePhysicalCountReports();
 
   const formatPlate = (plate: string) => {
@@ -41,6 +41,11 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const handleExportCSV = () => {
     if (plates.length === 0) {
       toast.error('Nenhuma placa para exportar');
+      return;
+    }
+
+    if (!createdBy.trim()) {
+      toast.error('Preencha o nome do responsável');
       return;
     }
 
@@ -118,6 +123,11 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const handleExportExcel = async () => {
     if (plates.length === 0) {
       toast.error('Nenhuma placa para exportar');
+      return;
+    }
+
+    if (!createdBy.trim()) {
+      toast.error('Preencha o nome do responsável');
       return;
     }
 
@@ -208,14 +218,22 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
       <div className="bg-card rounded-2xl p-4 border border-border mb-4">
         <h3 className="font-semibold mb-3">Informações do Relatório</h3>
         <div className="space-y-2">
-          <Label htmlFor="createdBy" className="text-sm">Responsável pela contagem</Label>
+          <Label htmlFor="createdBy" className="text-sm">
+            Responsável pela contagem <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="createdBy"
             value={createdBy}
             onChange={(e) => setCreatedBy(e.target.value)}
             placeholder="Digite seu nome"
             className="h-10"
+            required
           />
+          {!createdBy.trim() && (
+            <p className="text-xs text-muted-foreground">
+              Campo obrigatório para gerar relatório
+            </p>
+          )}
         </div>
       </div>
 
@@ -236,7 +254,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
           <Button
             className="w-full h-12 rounded-xl justify-start"
             onClick={handleExportCSV}
-            disabled={plates.length === 0}
+            disabled={plates.length === 0 || !createdBy.trim()}
           >
             <FileSpreadsheet className="w-5 h-5 mr-3" />
             <span className="flex-1 text-left">Baixar Relatório TXT</span>
@@ -246,7 +264,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
           <Button
             className="w-full h-12 rounded-xl justify-start bg-green-600 hover:bg-green-700"
             onClick={handleExportExcel}
-            disabled={plates.length === 0}
+            disabled={plates.length === 0 || !createdBy.trim()}
           >
             <FileSpreadsheet className="w-5 h-5 mr-3" />
             <span className="flex-1 text-left">Salvar e Gerar Link</span>
