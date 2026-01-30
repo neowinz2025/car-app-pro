@@ -5,7 +5,7 @@ import { PlateRecord } from '@/types/plate';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { generateEnhancedPDF } from '@/lib/pdfGenerator';
+import { generateExcelReport } from '@/lib/excelGenerator';
 import { usePhysicalCountReports } from '@/hooks/usePhysicalCountReports';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -116,7 +116,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     onClearPlates();
   };
 
-  const handleExportPDF = async () => {
+  const handleExportExcel = async () => {
     if (plates.length === 0) {
       toast.error('Nenhuma placa para exportar');
       return;
@@ -133,22 +133,19 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
       const shareUrl = `${window.location.origin}/relatorio/${result.shareToken}`;
       setShareLink(shareUrl);
 
-      const doc = generateEnhancedPDF({
+      generateExcelReport({
         plates,
-        shareToken: result.shareToken,
         createdBy
       });
 
-      doc.save(`relatorio_bate_fisico_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
-
       toast.success('Relatório disponível online!', {
-        description: `${plates.length} placas salvas. PDF baixado e link gerado para compartilhar.`,
+        description: `${plates.length} placas salvas. Excel baixado e link gerado para compartilhar.`,
         duration: 5000,
       });
 
       onClearPlates();
     } catch (error) {
-      console.error('Error exporting PDF:', error);
+      console.error('Error exporting Excel:', error);
       toast.error('Erro ao gerar relatório');
     }
   };
@@ -248,13 +245,13 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
           </Button>
 
           <Button
-            className="w-full h-12 rounded-xl justify-start bg-red-600 hover:bg-red-700"
-            onClick={handleExportPDF}
+            className="w-full h-12 rounded-xl justify-start bg-green-600 hover:bg-green-700"
+            onClick={handleExportExcel}
             disabled={plates.length === 0}
           >
-            <FileText className="w-5 h-5 mr-3" />
+            <FileSpreadsheet className="w-5 h-5 mr-3" />
             <span className="flex-1 text-left">Salvar e Gerar Link</span>
-            <span className="text-xs opacity-70">PDF + Link</span>
+            <span className="text-xs opacity-70">Excel + Link</span>
           </Button>
         </div>
       </div>
@@ -269,10 +266,10 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
                 ✅ Relatório Salvo com Sucesso!
               </h3>
               <p className="text-xs text-green-700 dark:text-green-300 mb-1">
-                O bate físico foi salvo e está disponível online
+                O bate físico foi salvo e o Excel foi baixado
               </p>
               <p className="text-xs text-green-700 dark:text-green-300 mb-3 font-semibold">
-                Compartilhe o link abaixo para visualização no navegador:
+                Compartilhe o link abaixo para visualização online no navegador:
               </p>
               <div className="flex gap-2 mb-2">
                 <Input

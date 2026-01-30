@@ -7,7 +7,7 @@ import { usePhysicalCountReports, PhysicalCountReport } from '@/hooks/usePhysica
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { generateEnhancedPDF } from '@/lib/pdfGenerator';
+import { generateExcelReport } from '@/lib/excelGenerator';
 import { PlateRecord } from '@/types/plate';
 
 export function SharedReportView() {
@@ -32,22 +32,19 @@ export function SharedReportView() {
     }
   }, [token, getReportByToken]);
 
-  const handleDownloadPDF = () => {
+  const handleDownloadExcel = () => {
     if (!report) return;
 
     try {
-      const doc = generateEnhancedPDF({
+      generateExcelReport({
         plates: report.plates_data,
-        shareToken: report.share_token,
         createdBy: report.created_by
       });
 
-      doc.save(`relatorio_${format(new Date(report.report_date), 'yyyy-MM-dd_HH-mm')}.pdf`);
-
-      toast.success('PDF baixado com sucesso!');
+      toast.success('Excel baixado com sucesso!');
     } catch (error) {
-      console.error('Error downloading PDF:', error);
-      toast.error('Erro ao baixar PDF');
+      console.error('Error downloading Excel:', error);
+      toast.error('Erro ao baixar Excel');
     }
   };
 
@@ -116,9 +113,9 @@ export function SharedReportView() {
                   Documento oficial de contagem física de placas
                 </CardDescription>
               </div>
-              <Button onClick={handleDownloadPDF} className="shrink-0">
+              <Button onClick={handleDownloadExcel} className="shrink-0">
                 <Download className="w-4 h-4 mr-2" />
-                Baixar PDF
+                Baixar Excel
               </Button>
             </div>
           </CardHeader>

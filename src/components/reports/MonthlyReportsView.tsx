@@ -6,7 +6,7 @@ import { usePhysicalCountReports, PhysicalCountReport } from '@/hooks/usePhysica
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { generateEnhancedPDF } from '@/lib/pdfGenerator';
+import { generateExcelReport } from '@/lib/excelGenerator';
 
 export function MonthlyReportsView() {
   const [selectedMonth, setSelectedMonth] = useState<string>(format(new Date(), 'yyyy-MM'));
@@ -31,20 +31,17 @@ export function MonthlyReportsView() {
     setSelectedMonth(format(newDate, 'yyyy-MM'));
   };
 
-  const handleDownloadPDF = (report: PhysicalCountReport) => {
+  const handleDownloadExcel = (report: PhysicalCountReport) => {
     try {
-      const doc = generateEnhancedPDF({
+      generateExcelReport({
         plates: report.plates_data,
-        shareToken: report.share_token,
         createdBy: report.created_by
       });
 
-      doc.save(`relatorio_${format(new Date(report.report_date), 'yyyy-MM-dd_HH-mm')}.pdf`);
-
-      toast.success('PDF baixado com sucesso!');
+      toast.success('Excel baixado com sucesso!');
     } catch (error) {
-      console.error('Error downloading PDF:', error);
-      toast.error('Erro ao baixar PDF');
+      console.error('Error downloading Excel:', error);
+      toast.error('Erro ao baixar Excel');
     }
   };
 
@@ -209,10 +206,10 @@ export function MonthlyReportsView() {
                     variant="outline"
                     size="sm"
                     className="flex-1 h-9"
-                    onClick={() => handleDownloadPDF(report)}
+                    onClick={() => handleDownloadExcel(report)}
                   >
                     <Download className="w-4 h-4 mr-2" />
-                    PDF
+                    Excel
                   </Button>
                   <Button
                     variant="outline"
