@@ -9,142 +9,138 @@ export interface ExcelGeneratorOptions {
 }
 
 export function generateExcelReport(options: ExcelGeneratorOptions): void {
-  const { plates, createdBy = 'Sistema' } = options;
+  const { plates } = options;
 
-  const loja = plates.filter(p => p.loja && !p.lavaJato);
-  const lavaJato = plates.filter(p => p.lavaJato && !p.loja);
-  const both = plates.filter(p => p.loja && p.lavaJato);
-  const neither = plates.filter(p => !p.loja && !p.lavaJato);
-
-  const formatPlate = (plate: string) => {
-    if (plate.length === 7) {
-      return `${plate.slice(0, 3)}-${plate.slice(3)}`;
-    }
-    return plate;
-  };
+  const loja = plates.filter(p => p.loja && !p.lavaJato).map(p => p.plate.toUpperCase());
+  const lavaJato = plates.filter(p => p.lavaJato && !p.loja).map(p => p.plate.toUpperCase());
+  const both = plates.filter(p => p.loja && p.lavaJato).map(p => p.plate.toUpperCase());
 
   const workbook = XLSX.utils.book_new();
 
-  const summaryData = [
-    ['RESUMO DO BATE FÍSICO'],
-    [],
-    ['Data do Relatório:', format(new Date(), 'dd/MM/yyyy', { locale: ptBR })],
-    ['Hora:', format(new Date(), 'HH:mm', { locale: ptBR })],
-    ['Gerado por:', createdBy],
-    [],
-    ['TOTALIZADORES'],
-    ['Categoria', 'Quantidade'],
-    ['🏪 Apenas Loja', loja.length],
-    ['💧 Apenas Lava-Jato', lavaJato.length],
-    ['🔄 Ambos (Loja + Lava-Jato)', both.length],
-    ['❓ Sem Categoria', neither.length],
-    [],
-    ['TOTAL GERAL', plates.length],
+  const sheetData: any[][] = [];
+
+  sheetData.push(['BATE FISICO', '']);
+  sheetData.push([format(new Date(), 'M/d/yy', { locale: ptBR }), '']);
+  sheetData.push(['LAVA', 'LOJA']);
+
+  const maxRows = Math.max(lavaJato.length + both.length, loja.length + both.length);
+
+  const lavaList = [...lavaJato, ...both];
+  const lojaList = [...loja, ...both];
+
+  for (let i = 0; i < maxRows; i++) {
+    const lavaPlate = lavaList[i] || '';
+    const lojaPlate = lojaList[i] || '';
+    sheetData.push([lavaPlate, lojaPlate]);
+  }
+
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+  worksheet['!cols'] = [
+    { wch: 15 },
+    { wch: 15 }
   ];
 
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-
-  summarySheet['!cols'] = [
-    { wch: 30 },
-    { wch: 20 }
+  worksheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 1 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 1 } }
   ];
 
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Resumo');
+  const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
 
-  const addCategorySheet = (
-    sheetName: string,
-    items: PlateRecord[],
-    categoryLabel: string
-  ) => {
-    if (items.length === 0) return;
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
 
-    const sheetData = [
-      [categoryLabel],
-      [],
-      ['PLACA', 'DATA', 'HORA', 'LOCALIZAÇÃO'],
-    ];
-
-    items.forEach((plate) => {
-      let location = '';
-      if (plate.loja && plate.lavaJato) {
-        location = 'Loja + Lava-Jato';
-      } else if (plate.loja) {
-        location = 'Loja';
-      } else if (plate.lavaJato) {
-        location = 'Lava-Jato';
-      } else {
-        location = 'Sem Categoria';
+      if (!worksheet[cellAddress]) {
+        worksheet[cellAddress] = { t: 's', v: '' };
       }
 
-      sheetData.push([
-        formatPlate(plate.plate),
-        format(plate.timestamp, 'dd/MM/yyyy', { locale: ptBR }),
-        format(plate.timestamp, 'HH:mm', { locale: ptBR }),
-        location
-      ]);
-    });
+      const cell = worksheet[cellAddress];
 
-    sheetData.push([]);
-    sheetData.push(['Total:', items.length]);
-
-    const sheet = XLSX.utils.aoa_to_sheet(sheetData);
-
-    sheet['!cols'] = [
-      { wch: 15 },
-      { wch: 12 },
-      { wch: 10 },
-      { wch: 20 }
-    ];
-
-    XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
-  };
-
-  addCategorySheet('Loja', loja, '🏪 PLACAS NA LOJA');
-  addCategorySheet('Lava-Jato', lavaJato, '💧 PLACAS NO LAVA-JATO');
-  addCategorySheet('Ambos', both, '🔄 PLACAS EM AMBOS');
-  addCategorySheet('Sem Categoria', neither, '❓ PLACAS SEM CATEGORIA');
-
-  const allPlatesData = [
-    ['TODAS AS PLACAS'],
-    [],
-    ['PLACA', 'DATA', 'HORA', 'LOCALIZAÇÃO'],
-  ];
-
-  plates.forEach((plate) => {
-    let location = '';
-    if (plate.loja && plate.lavaJato) {
-      location = 'Loja + Lava-Jato';
-    } else if (plate.loja) {
-      location = 'Loja';
-    } else if (plate.lavaJato) {
-      location = 'Lava-Jato';
-    } else {
-      location = 'Sem Categoria';
+      if (R === 0) {
+        cell.s = {
+          font: { bold: true, sz: 14 },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          fill: { fgColor: { rgb: 'B3D9FF' } },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+      } else if (R === 1) {
+        cell.s = {
+          font: { bold: true, sz: 12 },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          fill: { fgColor: { rgb: 'B3D9FF' } },
+          border: {
+            top: { style: 'thin', color: { rgb: '000000' } },
+            bottom: { style: 'thin', color: { rgb: '000000' } },
+            left: { style: 'thin', color: { rgb: '000000' } },
+            right: { style: 'thin', color: { rgb: '000000' } }
+          }
+        };
+      } else if (R === 2) {
+        if (C === 0) {
+          cell.s = {
+            font: { bold: true, sz: 11 },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: 'FFFF00' } },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        } else if (C === 1) {
+          cell.s = {
+            font: { bold: true, sz: 11 },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: '92D050' } },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        }
+      } else if (R > 2) {
+        if (C === 0) {
+          cell.s = {
+            font: { bold: true, sz: 10 },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: 'FFFF00' } },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        } else if (C === 1) {
+          cell.s = {
+            font: { bold: true, sz: 10 },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: '92D050' } },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'thin', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        }
+      }
     }
+  }
 
-    allPlatesData.push([
-      formatPlate(plate.plate),
-      format(plate.timestamp, 'dd/MM/yyyy', { locale: ptBR }),
-      format(plate.timestamp, 'HH:mm', { locale: ptBR }),
-      location
-    ]);
-  });
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'BATE FISICO');
 
-  allPlatesData.push([]);
-  allPlatesData.push(['Total:', plates.length]);
-
-  const allPlatesSheet = XLSX.utils.aoa_to_sheet(allPlatesData);
-
-  allPlatesSheet['!cols'] = [
-    { wch: 15 },
-    { wch: 12 },
-    { wch: 10 },
-    { wch: 20 }
-  ];
-
-  XLSX.utils.book_append_sheet(workbook, allPlatesSheet, 'Todas');
-
-  const fileName = `BATE FÍSICO ${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`;
+  const fileName = `BATE FISICO ${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`;
 
   XLSX.writeFile(workbook, fileName);
 }
