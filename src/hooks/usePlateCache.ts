@@ -64,8 +64,8 @@ export function usePlateCache() {
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
       const { data, error } = await supabase
-        .from('plates')
-        .select('plate_number, created_at')
+        .from('plate_records')
+        .select('plate, created_at')
         .gte('created_at', thirtyDaysAgo.toISOString())
         .order('created_at', { ascending: false })
         .limit(MAX_CACHE_SIZE);
@@ -79,7 +79,7 @@ export function usePlateCache() {
         const newCache = new Map(cache);
 
         data.forEach((record) => {
-          const plate = record.plate_number.toUpperCase();
+          const plate = record.plate.toUpperCase();
           if (!newCache.has(plate)) {
             newCache.set(plate, {
               plate,
