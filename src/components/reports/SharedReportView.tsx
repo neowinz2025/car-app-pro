@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { FileText, Download, Calendar, User, Store, Droplets, BarChart3 } from 'lucide-react';
+import { FileText, Download, Calendar, User, Store, Droplets, BarChart3, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { usePhysicalCountReports, PhysicalCountReport } from '@/hooks/usePhysicalCountReports';
 import { format } from 'date-fns';
@@ -13,6 +14,7 @@ import { PlateRecord } from '@/types/plate';
 export function SharedReportView() {
   const { token } = useParams<{ token: string }>();
   const [report, setReport] = useState<PhysicalCountReport | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const { getReportByToken, loading } = usePhysicalCountReports();
 
   useEffect(() => {
@@ -59,11 +61,17 @@ export function SharedReportView() {
     if (!report) return { loja: [], lavaJato: [], both: [], neither: [] };
 
     const plates = report.plates_data;
+    const normalizedSearch = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+
+    const filteredPlates = normalizedSearch
+      ? plates.filter(p => p.plate.toUpperCase().includes(normalizedSearch))
+      : plates;
+
     return {
-      loja: plates.filter(p => p.loja && !p.lavaJato),
-      lavaJato: plates.filter(p => p.lavaJato && !p.loja),
-      both: plates.filter(p => p.loja && p.lavaJato),
-      neither: plates.filter(p => !p.loja && !p.lavaJato),
+      loja: filteredPlates.filter(p => p.loja && !p.lavaJato),
+      lavaJato: filteredPlates.filter(p => p.lavaJato && !p.loja),
+      both: filteredPlates.filter(p => p.loja && p.lavaJato),
+      neither: filteredPlates.filter(p => !p.loja && !p.lavaJato),
     };
   };
 
@@ -97,6 +105,8 @@ export function SharedReportView() {
   }
 
   const categorized = getCategorizedPlates();
+  const hasResults = categorized.loja.length > 0 || categorized.lavaJato.length > 0 ||
+                     categorized.both.length > 0 || categorized.neither.length > 0;
 
   return (
     <div className="min-h-screen bg-background py-8 px-4">
@@ -165,6 +175,24 @@ export function SharedReportView() {
               </div>
             </div>
 
+            <div className="mb-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Buscar placa (ex: ABC1234 ou ABC-1234)"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-12 text-base"
+                />
+              </div>
+              {searchTerm && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Mostrando resultados para: <span className="font-semibold">{searchTerm}</span>
+                </p>
+              )}
+            </div>
+
             {report.notes && (
               <div className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
                 <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-2 text-sm">
@@ -175,6 +203,20 @@ export function SharedReportView() {
             )}
           </CardContent>
         </Card>
+
+        {searchTerm && !hasResults && (
+          <Card className="mb-4">
+            <CardContent className="pt-6">
+              <div className="text-center py-8">
+                <Search className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
+                <h3 className="text-lg font-semibold mb-2">Nenhuma placa encontrada</h3>
+                <p className="text-muted-foreground">
+                  Não foram encontradas placas com o termo "{searchTerm}"
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {[
           { title: '🏪 Placas na Loja', data: categorized.loja, color: 'green' },
