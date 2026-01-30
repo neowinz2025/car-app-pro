@@ -120,11 +120,25 @@ export function useAdminAuth() {
     setAdminUsername('');
   };
 
+  const getSessionToken = (): string | null => {
+    try {
+      const adminDataStr = localStorage.getItem('admin_session');
+      if (!adminDataStr) return null;
+
+      const adminData: AdminSession = JSON.parse(adminDataStr);
+      return adminData.token || null;
+    } catch (error) {
+      console.error('Error getting session token:', error);
+      return null;
+    }
+  };
+
   return {
     isAuthenticated,
     isLoading,
     adminUsername,
     login,
-    logout
+    logout,
+    getSessionToken
   };
 }

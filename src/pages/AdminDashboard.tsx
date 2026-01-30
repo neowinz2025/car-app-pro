@@ -40,7 +40,7 @@ interface PlateRecord {
 }
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading, adminUsername, logout } = useAdminAuth();
+  const { isAuthenticated, isLoading, adminUsername, logout, getSessionToken } = useAdminAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
   const [plates, setPlates] = useState<PlateRecord[]>([]);
@@ -99,12 +99,30 @@ export default function AdminDashboard() {
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      const { error } = await supabase
-        .from('physical_count_reports')
-        .delete()
-        .eq('id', reportId);
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        toast.error('Sessão inválida. Faça login novamente.');
+        navigate('/admin/login');
+        return;
+      }
 
-      if (error) throw error;
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const apiUrl = `${supabaseUrl}/functions/v1/delete-report`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ reportId, sessionToken }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to delete report' }));
+        throw new Error(errorData.error);
+      }
 
       setReports(reports.filter(r => r.id !== reportId));
       toast.success('Relatório excluído com sucesso');
