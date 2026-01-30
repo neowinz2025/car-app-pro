@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2 } from 'lucide-react';
+import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { ActiveStep } from '@/types/plate';
 import { toast } from 'sonner';
 import { useCamera } from '@/hooks/useCamera';
 import { usePlateRecognition } from '@/hooks/usePlateRecognition';
+import { usePlateCache } from '@/hooks/usePlateCache';
 
 interface ScannerViewProps {
   activeStep: ActiveStep;
@@ -18,6 +19,8 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
+  const [showSuccessFlash, setShowSuccessFlash] = useState(false);
+  const [detectedPlateText, setDetectedPlateText] = useState('');
   const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
@@ -30,13 +33,32 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     captureFrame,
   } = useCamera({ facingMode: 'environment' });
 
+  const { cacheSize, syncWithDatabase } = usePlateCache();
+
+  // Sync cache with database on mount
+  useEffect(() => {
+    syncWithDatabase();
+  }, [syncWithDatabase]);
+
   const handlePlateDetected = useCallback((plate: string) => {
     if (!activeStep) return;
-    
+
     const success = onAddPlate(plate);
     if (success) {
-      toast.success('Placa detectada!', {
+      // Show success flash animation
+      setDetectedPlateText(plate.toUpperCase());
+      setShowSuccessFlash(true);
+      setTimeout(() => setShowSuccessFlash(false), 1500);
+
+      toast.success('✓ PLACA COLETADA!', {
         description: plate.toUpperCase(),
+        duration: 3000,
+        style: {
+          fontSize: '1.25rem',
+          fontWeight: 'bold',
+          padding: '1.5rem',
+          minWidth: '300px',
+        },
       });
     }
   }, [activeStep, onAddPlate]);
@@ -77,8 +99,20 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     if (manualPlate.trim()) {
       const success = onAddPlate(manualPlate.trim());
       if (success) {
-        toast.success('Placa registrada!', {
+        // Show success flash animation
+        setDetectedPlateText(manualPlate.toUpperCase());
+        setShowSuccessFlash(true);
+        setTimeout(() => setShowSuccessFlash(false), 1500);
+
+        toast.success('✓ PLACA REGISTRADA!', {
           description: manualPlate.toUpperCase(),
+          duration: 3000,
+          style: {
+            fontSize: '1.25rem',
+            fontWeight: 'bold',
+            padding: '1.5rem',
+            minWidth: '300px',
+          },
         });
         setManualPlate('');
         setShowManualInput(false);
@@ -126,6 +160,23 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
 
   return (
     <div className="flex flex-col h-full px-4 py-4 gap-4">
+      {/* Success Flash Overlay */}
+      {showSuccessFlash && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-500/30 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-green-500 text-white px-8 py-6 rounded-3xl shadow-2xl animate-in zoom-in duration-200 flex flex-col items-center gap-3">
+            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center">
+              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold">PLACA COLETADA!</p>
+              <p className="text-4xl font-mono font-black mt-2 tracking-wider">{detectedPlateText}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Step Selector */}
       <div className="flex gap-3">
         <button
@@ -288,17 +339,29 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       )}
 
       {/* Status */}
-      <div className="flex items-center justify-center gap-2 py-2">
-        <div className={cn(
-          "w-2 h-2 rounded-full",
-          isActive && isProcessing ? "bg-warning animate-pulse" :
-          isActive ? "bg-success animate-pulse" : "bg-muted-foreground"
-        )} />
-        <span className="text-sm text-muted-foreground">
-          {isActive && isProcessing ? 'Reconhecendo placa...' :
-           isActive ? 'Escaneando automaticamente' : 
-           error ? 'Erro na câmera' : 'Aguardando'}
-        </span>
+      <div className="flex flex-col items-center justify-center gap-2 py-2">
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "w-2 h-2 rounded-full",
+            isActive && isProcessing ? "bg-warning animate-pulse" :
+            isActive ? "bg-success animate-pulse" : "bg-muted-foreground"
+          )} />
+          <span className="text-sm text-muted-foreground">
+            {isActive && isProcessing ? 'Reconhecendo placa...' :
+             isActive ? 'Escaneando automaticamente' :
+             error ? 'Erro na câmera' : 'Aguardando'}
+          </span>
+        </div>
+
+        {/* Cache Status */}
+        {cacheSize > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
+            <Database className="w-3 h-3 text-primary" />
+            <span className="text-xs text-primary font-medium">
+              {cacheSize} placas em cache local
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
