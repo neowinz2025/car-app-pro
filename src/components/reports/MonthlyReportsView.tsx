@@ -15,13 +15,13 @@ export function MonthlyReportsView() {
   const { getMonthlyReports, loading } = usePhysicalCountReports();
 
   useEffect(() => {
-    loadReports();
-  }, [selectedMonth]);
+    const loadReports = async () => {
+      const data = await getMonthlyReports(selectedMonth);
+      setReports(data);
+    };
 
-  const loadReports = async () => {
-    const data = await getMonthlyReports(selectedMonth);
-    setReports(data);
-  };
+    loadReports();
+  }, [selectedMonth, getMonthlyReports]);
 
   const handleMonthChange = (direction: 'prev' | 'next') => {
     const currentDate = new Date(selectedMonth + '-01');

@@ -16,21 +16,21 @@ export function SharedReportView() {
   const { getReportByToken, loading } = usePhysicalCountReports();
 
   useEffect(() => {
+    const loadReport = async () => {
+      if (!token) return;
+
+      const data = await getReportByToken(token);
+      if (data) {
+        setReport(data);
+      } else {
+        toast.error('Relatório não encontrado');
+      }
+    };
+
     if (token) {
       loadReport();
     }
-  }, [token]);
-
-  const loadReport = async () => {
-    if (!token) return;
-
-    const data = await getReportByToken(token);
-    if (data) {
-      setReport(data);
-    } else {
-      toast.error('Relatório não encontrado');
-    }
-  };
+  }, [token, getReportByToken]);
 
   const handleDownloadPDF = () => {
     if (!report) return;
