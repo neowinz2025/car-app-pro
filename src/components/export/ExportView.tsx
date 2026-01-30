@@ -141,8 +141,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
 
       doc.save(`relatorio_bate_fisico_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
 
-      toast.success('Relatório gerado com sucesso!', {
-        description: `${plates.length} placas exportadas e salvas no banco`,
+      toast.success('Relatório disponível online!', {
+        description: `${plates.length} placas salvas. PDF baixado e link gerado para compartilhar.`,
         duration: 5000,
       });
 
@@ -253,8 +253,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
             disabled={plates.length === 0}
           >
             <FileText className="w-5 h-5 mr-3" />
-            <span className="flex-1 text-left">Gerar PDF Completo</span>
-            <span className="text-xs opacity-70">.pdf</span>
+            <span className="flex-1 text-left">Salvar e Gerar Link</span>
+            <span className="text-xs opacity-70">PDF + Link</span>
           </Button>
         </div>
       </div>
@@ -262,29 +262,47 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
       {/* Share Link */}
       {shareLink && (
         <div className="bg-green-50 dark:bg-green-950 rounded-2xl p-4 border border-green-200 dark:border-green-800 mb-4 animate-scale-in">
-          <div className="flex items-start gap-3 mb-3">
+          <div className="flex items-start gap-3">
             <Share2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
             <div className="flex-1">
               <h3 className="font-semibold text-green-900 dark:text-green-100 mb-1">
-                Link para Compartilhamento
+                ✅ Relatório Salvo com Sucesso!
               </h3>
-              <p className="text-xs text-green-700 dark:text-green-300 mb-3">
-                Compartilhe este link para que outras pessoas possam visualizar o relatório online
+              <p className="text-xs text-green-700 dark:text-green-300 mb-1">
+                O bate físico foi salvo e está disponível online
               </p>
-              <div className="flex gap-2">
+              <p className="text-xs text-green-700 dark:text-green-300 mb-3 font-semibold">
+                Compartilhe o link abaixo para visualização no navegador:
+              </p>
+              <div className="flex gap-2 mb-2">
                 <Input
                   value={shareLink}
                   readOnly
-                  className="h-9 text-sm bg-white dark:bg-gray-900"
+                  className="h-9 text-sm bg-white dark:bg-gray-900 font-mono"
+                  onClick={(e) => e.currentTarget.select()}
                 />
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={handleCopyShareLink}
                   className="shrink-0"
+                  title="Copiar link"
                 >
                   <Copy className="w-4 h-4" />
                 </Button>
+                <Button
+                  size="sm"
+                  variant="default"
+                  onClick={() => window.open(shareLink, '_blank')}
+                  className="shrink-0 bg-green-600 hover:bg-green-700"
+                  title="Abrir relatório"
+                >
+                  <Eye className="w-4 h-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-green-700 dark:text-green-300">
+                <Eye className="w-3 h-3" />
+                <span>Qualquer pessoa com este link poderá ver o relatório completo</span>
               </div>
             </div>
           </div>
