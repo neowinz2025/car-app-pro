@@ -21,11 +21,11 @@ Deno.serve(async (req: Request) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { reportId, sessionToken } = await req.json();
+    const { reportId, adminUsername } = await req.json();
 
-    if (!reportId || !sessionToken) {
+    if (!reportId || !adminUsername) {
       return new Response(
-        JSON.stringify({ error: "Report ID and session token are required" }),
+        JSON.stringify({ error: "Report ID and admin username are required" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -33,16 +33,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: session, error: sessionError } = await supabaseAdmin
-      .from("admin_sessions")
-      .select("*, admin_users(*)")
-      .eq("session_token", sessionToken)
-      .gt("expires_at", new Date().toISOString())
+    const { data: admin, error: adminError } = await supabaseAdmin
+      .from("admins")
+      .select("id, username")
+      .eq("username", adminUsername)
       .maybeSingle();
 
-    if (sessionError || !session) {
+    if (adminError || !admin) {
       return new Response(
-        JSON.stringify({ error: "Invalid or expired session" }),
+        JSON.stringify({ error: "Invalid admin user" }),
         {
           status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },

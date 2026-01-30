@@ -40,7 +40,7 @@ interface PlateRecord {
 }
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading, adminUsername, logout, getSessionToken } = useAdminAuth();
+  const { isAuthenticated, isLoading, adminUsername, logout } = useAdminAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
   const [plates, setPlates] = useState<PlateRecord[]>([]);
@@ -99,8 +99,7 @@ export default function AdminDashboard() {
 
   const handleDeleteReport = async (reportId: string) => {
     try {
-      const sessionToken = getSessionToken();
-      if (!sessionToken) {
+      if (!adminUsername) {
         toast.error('Sessão inválida. Faça login novamente.');
         navigate('/admin/login');
         return;
@@ -116,7 +115,7 @@ export default function AdminDashboard() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseAnonKey}`,
         },
-        body: JSON.stringify({ reportId, sessionToken }),
+        body: JSON.stringify({ reportId, adminUsername }),
       });
 
       if (!response.ok) {
