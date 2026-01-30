@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+
+interface AdminSession {
+  username: string;
+  token: string;
+  timestamp: number;
+}
 
 export function useAdminAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -7,47 +12,101 @@ export function useAdminAuth() {
   const [adminUsername, setAdminUsername] = useState<string>('');
 
   useEffect(() => {
-    const adminData = localStorage.getItem('admin_session');
-    if (adminData) {
-      const { username, timestamp } = JSON.parse(adminData);
-      const now = Date.now();
-      const sessionDuration = 24 * 60 * 60 * 1000;
+    const validateSession = () => {
+      try {
+        const adminDataStr = localStorage.getItem('admin_session');
+        if (!adminDataStr) {
+          setIsLoading(false);
+          return;
+        }
 
-      if (now - timestamp < sessionDuration) {
-        setIsAuthenticated(true);
-        setAdminUsername(username);
-      } else {
+        const adminData: AdminSession = JSON.parse(adminDataStr);
+
+        if (!adminData.username || !adminData.token || !adminData.timestamp) {
+          localStorage.removeItem('admin_session');
+          setIsLoading(false);
+          return;
+        }
+
+        const now = Date.now();
+        const sessionDuration = 24 * 60 * 60 * 1000;
+
+        if (now - adminData.timestamp < sessionDuration) {
+          setIsAuthenticated(true);
+          setAdminUsername(adminData.username);
+        } else {
+          localStorage.removeItem('admin_session');
+        }
+      } catch (error) {
+        console.error('Error validating session:', error);
         localStorage.removeItem('admin_session');
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+
+    validateSession();
   }, []);
 
   const login = async (username: string, password: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from('admins')
-        .select('*')
-        .eq('username', username)
-        .eq('password', password)
-        .maybeSingle();
-
-      if (error || !data) {
+      if (!username || !password) {
+        console.error('Username and password are required');
         return false;
       }
 
-      await supabase
-        .from('admins')
-        .update({ last_login: new Date().toISOString() })
-        .eq('id', data.id);
+      if (username.length < 3 || username.length > 50) {
+        console.error('Invalid username length');
+        return false;
+      }
 
-      localStorage.setItem('admin_session', JSON.stringify({
-        username: data.username,
+      if (password.length < 6 || password.length > 100) {
+        console.error('Invalid password length');
+        return false;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('Supabase configuration missing');
+        return false;
+      }
+
+      const apiUrl = `${supabaseUrl}/functions/v1/admin-login`;
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ username, password }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }));
+        console.error('Login failed:', errorData.error);
+        return false;
+      }
+
+      const data = await response.json();
+
+      if (!data.success || !data.token || !data.admin) {
+        console.error('Invalid response from server');
+        return false;
+      }
+
+      const sessionData: AdminSession = {
+        username: data.admin.username,
+        token: data.token,
         timestamp: Date.now()
-      }));
+      };
+
+      localStorage.setItem('admin_session', JSON.stringify(sessionData));
 
       setIsAuthenticated(true);
-      setAdminUsername(data.username);
+      setAdminUsername(data.admin.username);
       return true;
     } catch (error) {
       console.error('Login error:', error);
