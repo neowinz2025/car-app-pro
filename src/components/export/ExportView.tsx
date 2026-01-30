@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText } from 'lucide-react';
+import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlateRecord } from '@/types/plate';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
-import { jsPDF } from 'jspdf';
+import { generateEnhancedPDF } from '@/lib/pdfGenerator';
+import { usePhysicalCountReports } from '@/hooks/usePhysicalCountReports';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 interface ExportViewProps {
   plates: PlateRecord[];
@@ -15,6 +18,9 @@ interface ExportViewProps {
 
 export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProps) {
   const [showPreview, setShowPreview] = useState(false);
+  const [shareLink, setShareLink] = useState<string>('');
+  const [createdBy, setCreatedBy] = useState<string>('Sistema');
+  const { saveReport } = usePhysicalCountReports();
 
   const formatPlate = (plate: string) => {
     if (plate.length === 7) {
@@ -110,154 +116,50 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     onClearPlates();
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     if (plates.length === 0) {
       toast.error('Nenhuma placa para exportar');
       return;
     }
 
-    const { loja, lavaJato, both, neither } = getCategorizedPlates();
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    let yPos = 20;
+    try {
+      const result = await saveReport(plates, createdBy);
 
-    // Title Background
-    doc.setFillColor(30, 58, 95);
-    doc.rect(0, 0, pageWidth, 35, 'F');
-
-    // Title
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text('RELATÓRIO DE PLACAS', pageWidth / 2, 18, { align: 'center' });
-
-    // Date
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Gerado em: ${format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR })}`, pageWidth / 2, 28, { align: 'center' });
-    yPos = 45;
-
-    const addSection = (title: string, items: PlateRecord[], headerColor: [number, number, number], icon: string) => {
-      if (items.length === 0) return;
-
-      // Check if we need a new page
-      if (yPos > 240) {
-        doc.addPage();
-        yPos = 20;
+      if (!result.success || !result.shareToken) {
+        toast.error('Erro ao salvar relatório no banco de dados');
+        return;
       }
 
-      // Section header with rounded style
-      doc.setFillColor(...headerColor);
-      doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 12, 2, 2, 'F');
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(255, 255, 255);
-      doc.text(`${icon}  ${title}`, margin + 6, yPos + 8);
-      doc.text(`${items.length} placas`, pageWidth - margin - 6, yPos + 8, { align: 'right' });
-      yPos += 18;
+      const shareUrl = `${window.location.origin}/relatorio/${result.shareToken}`;
+      setShareLink(shareUrl);
 
-      // Table header
-      doc.setFillColor(245, 247, 250);
-      doc.rect(margin, yPos, pageWidth - 2 * margin, 10, 'F');
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(80, 80, 80);
-      doc.text('PLACA', margin + 8, yPos + 7);
-      doc.text('DATA', margin + 60, yPos + 7);
-      doc.text('HORA', margin + 110, yPos + 7);
-      yPos += 12;
-
-      // Items in grid
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(40, 40, 40);
-      
-      items.forEach((p, index) => {
-        if (yPos > 275) {
-          doc.addPage();
-          yPos = 20;
-        }
-
-        // Alternating row background
-        if (index % 2 === 0) {
-          doc.setFillColor(252, 252, 253);
-          doc.rect(margin, yPos - 4, pageWidth - 2 * margin, 8, 'F');
-        }
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(formatPlate(p.plate), margin + 8, yPos + 2);
-        
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
-        doc.text(format(p.timestamp, 'dd/MM/yyyy', { locale: ptBR }), margin + 60, yPos + 2);
-        doc.text(format(p.timestamp, 'HH:mm', { locale: ptBR }), margin + 110, yPos + 2);
-        yPos += 8;
+      const doc = generateEnhancedPDF({
+        plates,
+        shareToken: result.shareToken,
+        createdBy
       });
 
-      // Section divider
-      yPos += 8;
-    };
+      doc.save(`relatorio_bate_fisico_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
 
-    // Add sections with different colors and icons
-    addSection('LOJA', loja, [34, 139, 34], '🏪');
-    addSection('LAVA JATO', lavaJato, [30, 144, 255], '💧');
-    addSection('LOJA + LAVA JATO', both, [138, 43, 226], '🔄');
-    addSection('SEM CATEGORIA', neither, [128, 128, 128], '❓');
+      toast.success('Relatório gerado com sucesso!', {
+        description: `${plates.length} placas exportadas e salvas no banco`,
+        duration: 5000,
+      });
 
-    // Summary section
-    if (yPos > 220) {
-      doc.addPage();
-      yPos = 20;
+      onClearPlates();
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erro ao gerar relatório');
     }
+  };
 
-    yPos += 5;
-    
-    // Summary box
-    doc.setFillColor(240, 245, 250);
-    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 55, 3, 3, 'F');
-    doc.setDrawColor(30, 58, 95);
-    doc.setLineWidth(0.5);
-    doc.roundedRect(margin, yPos, pageWidth - 2 * margin, 55, 3, 3, 'S');
-    
-    yPos += 10;
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(30, 58, 95);
-    doc.text('RESUMO GERAL', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(60, 60, 60);
-    
-    const col1X = margin + 15;
-    const col2X = pageWidth / 2 + 10;
-    
-    doc.text(`🏪  Loja: ${loja.length} placas`, col1X, yPos);
-    doc.text(`💧  Lava Jato: ${lavaJato.length} placas`, col2X, yPos);
-    yPos += 8;
-    doc.text(`🔄  Ambos: ${both.length} placas`, col1X, yPos);
-    doc.text(`❓  Sem Categoria: ${neither.length} placas`, col2X, yPos);
-    yPos += 12;
-    
-    // Total highlight
-    doc.setFillColor(30, 58, 95);
-    doc.roundedRect(margin + 40, yPos - 2, pageWidth - 2 * margin - 80, 14, 2, 2, 'F');
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(255, 255, 255);
-    doc.text(`📊  TOTAL GERAL: ${plates.length} PLACAS`, pageWidth / 2, yPos + 8, { align: 'center' });
-
-    // Save
-    doc.save(`relatorio_placas_${format(new Date(), 'yyyy-MM-dd_HH-mm')}.pdf`);
-
-    toast.success('PDF exportado!', {
-      description: `${plates.length} placas exportadas`,
-    });
-
-    // Clear plates after export
-    onClearPlates();
+  const handleCopyShareLink = () => {
+    if (shareLink) {
+      navigator.clipboard.writeText(shareLink);
+      toast.success('Link copiado!', {
+        description: 'O link foi copiado para a área de transferência',
+      });
+    }
   };
 
   return (
@@ -306,10 +208,25 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
         </div>
       </div>
 
+      {/* User Info */}
+      <div className="bg-card rounded-2xl p-4 border border-border mb-4">
+        <h3 className="font-semibold mb-3">Informações do Relatório</h3>
+        <div className="space-y-2">
+          <Label htmlFor="createdBy" className="text-sm">Responsável pela contagem</Label>
+          <Input
+            id="createdBy"
+            value={createdBy}
+            onChange={(e) => setCreatedBy(e.target.value)}
+            placeholder="Digite seu nome"
+            className="h-10"
+          />
+        </div>
+      </div>
+
       {/* Export Options */}
       <div className="bg-card rounded-2xl p-4 border border-border mb-4">
         <h3 className="font-semibold mb-3">Exportar</h3>
-        
+
         <div className="space-y-3">
           <Button
             variant="outline"
@@ -319,7 +236,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
             <Eye className="w-5 h-5 mr-3" />
             <span className="flex-1 text-left">Prévia dos Dados</span>
           </Button>
-          
+
           <Button
             className="w-full h-12 rounded-xl justify-start"
             onClick={handleExportCSV}
@@ -336,11 +253,43 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
             disabled={plates.length === 0}
           >
             <FileText className="w-5 h-5 mr-3" />
-            <span className="flex-1 text-left">Baixar PDF</span>
+            <span className="flex-1 text-left">Gerar PDF Completo</span>
             <span className="text-xs opacity-70">.pdf</span>
           </Button>
         </div>
       </div>
+
+      {/* Share Link */}
+      {shareLink && (
+        <div className="bg-green-50 dark:bg-green-950 rounded-2xl p-4 border border-green-200 dark:border-green-800 mb-4 animate-scale-in">
+          <div className="flex items-start gap-3 mb-3">
+            <Share2 className="w-5 h-5 text-green-600 dark:text-green-400 mt-0.5" />
+            <div className="flex-1">
+              <h3 className="font-semibold text-green-900 dark:text-green-100 mb-1">
+                Link para Compartilhamento
+              </h3>
+              <p className="text-xs text-green-700 dark:text-green-300 mb-3">
+                Compartilhe este link para que outras pessoas possam visualizar o relatório online
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  value={shareLink}
+                  readOnly
+                  className="h-9 text-sm bg-white dark:bg-gray-900"
+                />
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleCopyShareLink}
+                  className="shrink-0"
+                >
+                  <Copy className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Preview Table */}
       {showPreview && (

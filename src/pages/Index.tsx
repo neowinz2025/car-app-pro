@@ -6,6 +6,7 @@ import { PlatesList } from '@/components/plates/PlatesList';
 import { StatsView } from '@/components/stats/StatsView';
 import { ExportView } from '@/components/export/ExportView';
 import { ShiftView } from '@/components/shift/ShiftView';
+import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
 
@@ -46,6 +47,8 @@ const Index = () => {
         return <StatsView plates={plates} stats={stats} />;
       case 'export':
         return <ExportView plates={plates} onFillStep={fillStep} onClearPlates={clearPlates} />;
+      case 'reports':
+        return <MonthlyReportsView />;
       case 'shift':
         return <ShiftView />;
       default:
