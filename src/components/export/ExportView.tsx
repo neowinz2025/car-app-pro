@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy, Trash2 } from 'lucide-react';
+import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlateRecord } from '@/types/plate';
 import { format } from 'date-fns';
@@ -20,7 +20,6 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const [showPreview, setShowPreview] = useState(false);
   const [shareLink, setShareLink] = useState<string>('');
   const [createdBy, setCreatedBy] = useState<string>('Sistema');
-  const [showClearConfirm, setShowClearConfirm] = useState(false);
   const { saveReport } = usePhysicalCountReports();
 
   const formatPlate = (plate: string) => {
@@ -109,9 +108,11 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     link.click();
     URL.revokeObjectURL(url);
 
-    toast.success('Relatório exportado!', {
-      description: `${plates.length} placas exportadas. Dados mantidos para nova exportação.`,
+    toast.success('Relatório exportado e finalizado!', {
+      description: `${plates.length} placas exportadas. Bate físico concluído.`,
     });
+
+    onClearPlates();
   };
 
   const handleExportExcel = async () => {
@@ -137,9 +138,11 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
       });
 
       toast.success('Relatório disponível online!', {
-        description: `${plates.length} placas salvas. Excel baixado e link gerado. Dados mantidos para nova exportação.`,
+        description: `${plates.length} placas salvas. Excel baixado e link gerado. Bate físico concluído.`,
         duration: 5000,
       });
+
+      onClearPlates();
     } catch (error) {
       console.error('Error exporting Excel:', error);
       toast.error('Erro ao gerar relatório');
@@ -251,59 +254,6 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
           </Button>
         </div>
       </div>
-
-      {/* Clear Data Section */}
-      {plates.length > 0 && (
-        <div className="bg-card rounded-2xl p-4 border border-border mb-4">
-          <h3 className="font-semibold mb-3 text-destructive">Zona de Perigo</h3>
-          <p className="text-xs text-muted-foreground mb-4">
-            Após exportar, os dados são mantidos automaticamente. Use o botão abaixo apenas quando quiser começar uma nova contagem.
-          </p>
-
-          {!showClearConfirm ? (
-            <Button
-              variant="destructive"
-              className="w-full h-12 rounded-xl justify-start"
-              onClick={() => setShowClearConfirm(true)}
-            >
-              <Trash2 className="w-5 h-5 mr-3" />
-              <span className="flex-1 text-left">Limpar Todas as Placas</span>
-            </Button>
-          ) : (
-            <div className="space-y-2">
-              <div className="bg-destructive/10 rounded-xl p-3 mb-3">
-                <p className="text-sm font-semibold text-destructive mb-1">⚠️ Atenção!</p>
-                <p className="text-xs text-muted-foreground">
-                  Tem certeza? Esta ação não pode ser desfeita. Todas as {plates.length} placas serão removidas permanentemente.
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1 h-11 rounded-xl"
-                  onClick={() => setShowClearConfirm(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="destructive"
-                  className="flex-1 h-11 rounded-xl"
-                  onClick={() => {
-                    onClearPlates();
-                    setShowClearConfirm(false);
-                    setShareLink('');
-                    toast.success('Todas as placas foram removidas', {
-                      description: 'Você pode começar uma nova contagem',
-                    });
-                  }}
-                >
-                  Sim, Limpar Tudo
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Share Link */}
       {shareLink && (
