@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PlateRecord, ActiveStep } from '@/types/plate';
+import { supabase } from '@/integrations/supabase/client';
 
 const STORAGE_KEY = 'baty-car-plates';
 
@@ -31,22 +32,22 @@ export function usePlates() {
   const [plates, setPlates] = useState<PlateRecord[]>(loadPlates);
   const [activeStep, setActiveStep] = useState<ActiveStep>(null);
 
-  const addPlate = useCallback((plateText: string) => {
+  const addPlate = useCallback(async (plateText: string) => {
     const normalizedPlate = plateText.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    
+
     if (normalizedPlate.length < 7) return false;
 
-    // Check if plate already exists to prevent duplicates
     const plateExists = plates.some(p => p.plate === normalizedPlate);
     if (plateExists) {
       console.log(`Placa ${normalizedPlate} já foi registrada`);
       return false;
     }
 
+    const timestamp = new Date();
     const newPlate: PlateRecord = {
       id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       plate: normalizedPlate,
-      timestamp: new Date(),
+      timestamp,
       loja: activeStep === 'loja',
       lavaJato: activeStep === 'lavaJato',
     };
@@ -56,6 +57,24 @@ export function usePlates() {
       savePlates(updated);
       return updated;
     });
+
+    try {
+      const { error } = await supabase
+        .from('plate_records')
+        .insert({
+          plate: normalizedPlate,
+          timestamp: timestamp.toISOString(),
+          loja: activeStep === 'loja',
+          lava_jato: activeStep === 'lavaJato',
+          session_date: timestamp.toISOString().split('T')[0],
+        });
+
+      if (error) {
+        console.error('Error saving plate to database:', error);
+      }
+    } catch (error) {
+      console.error('Error saving plate to database:', error);
+    }
 
     return true;
   }, [activeStep, plates]);

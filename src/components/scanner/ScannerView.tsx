@@ -12,7 +12,7 @@ import { usePlateCache } from '@/hooks/usePlateCache';
 interface ScannerViewProps {
   activeStep: ActiveStep;
   onSetActiveStep: (step: ActiveStep) => void;
-  onAddPlate: (plate: string) => boolean;
+  onAddPlate: (plate: string) => Promise<boolean>;
 }
 
 export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: ScannerViewProps) {
@@ -40,12 +40,11 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     syncWithDatabase();
   }, [syncWithDatabase]);
 
-  const handlePlateDetected = useCallback((plate: string) => {
+  const handlePlateDetected = useCallback(async (plate: string) => {
     if (!activeStep) return;
 
-    const success = onAddPlate(plate);
+    const success = await onAddPlate(plate);
     if (success) {
-      // Show success flash animation
       setDetectedPlateText(plate.toUpperCase());
       setShowSuccessFlash(true);
       setTimeout(() => setShowSuccessFlash(false), 1500);
@@ -95,11 +94,10 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     }
   };
 
-  const handleManualAdd = () => {
+  const handleManualAdd = async () => {
     if (manualPlate.trim()) {
-      const success = onAddPlate(manualPlate.trim());
+      const success = await onAddPlate(manualPlate.trim());
       if (success) {
-        // Show success flash animation
         setDetectedPlateText(manualPlate.toUpperCase());
         setShowSuccessFlash(true);
         setTimeout(() => setShowSuccessFlash(false), 1500);

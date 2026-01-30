@@ -62,7 +62,7 @@ interface RecognizedPlate {
 }
 
 interface UsePlateRecognitionOptions {
-  onPlateDetected?: (plate: string) => void;
+  onPlateDetected?: (plate: string) => void | Promise<void>;
   confidenceThreshold?: number;
   scanIntervalMs?: number;
 }
