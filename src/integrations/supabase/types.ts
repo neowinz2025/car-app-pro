@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      physical_count_reports: {
+        Row: {
+          both_count: number
+          created_at: string
+          created_by: string
+          id: string
+          lava_jato_count: number
+          loja_count: number
+          month_year: string
+          neither_count: number
+          notes: string | null
+          plates_data: Json
+          report_date: string
+          share_token: string
+          total_plates: number
+        }
+        Insert: {
+          both_count?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          lava_jato_count?: number
+          loja_count?: number
+          month_year: string
+          neither_count?: number
+          notes?: string | null
+          plates_data?: Json
+          report_date?: string
+          share_token: string
+          total_plates?: number
+        }
+        Update: {
+          both_count?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          lava_jato_count?: number
+          loja_count?: number
+          month_year?: string
+          neither_count?: number
+          notes?: string | null
+          plates_data?: Json
+          report_date?: string
+          share_token?: string
+          total_plates?: number
+        }
+        Relationships: []
+      }
       shift_handovers: {
         Row: {
           carros_abastecidos: number
