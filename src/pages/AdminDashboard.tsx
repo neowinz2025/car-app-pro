@@ -388,7 +388,7 @@ export default function AdminDashboard() {
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="p-4 border border-border rounded-xl bg-accent/30">
                         <div className="text-2xl font-bold text-primary">
                           {reports.length}
@@ -400,12 +400,6 @@ export default function AdminDashboard() {
                           {reports.reduce((sum, r) => sum + r.total_plates, 0)}
                         </div>
                         <div className="text-sm text-muted-foreground">Total de Placas</div>
-                      </div>
-                      <div className="p-4 border border-border rounded-xl bg-accent/30">
-                        <div className="text-2xl font-bold text-primary">
-                          {reports.reduce((sum, r) => sum + r.loja_count, 0)}
-                        </div>
-                        <div className="text-sm text-muted-foreground">Placas na Loja</div>
                       </div>
                     </div>
                   )}
