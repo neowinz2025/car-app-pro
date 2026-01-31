@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy } from 'lucide-react';
+import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlateRecord } from '@/types/plate';
 import { format } from 'date-fns';
@@ -20,6 +20,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const [showPreview, setShowPreview] = useState(false);
   const [shareLink, setShareLink] = useState<string>('');
   const [createdBy, setCreatedBy] = useState<string>('');
+  const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const { saveReport } = usePhysicalCountReports();
 
   const formatPlate = (plate: string) => {
@@ -50,7 +51,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     }
 
     const { loja, lavaJato, both, neither } = getCategorizedPlates();
-    const dateStr = format(new Date(), 'dd/MM/yyyy HH:mm', { locale: ptBR });
+    const selectedDate = new Date(reportDate + 'T00:00:00');
+    const dateStr = format(selectedDate, 'dd/MM/yyyy', { locale: ptBR });
 
     const lines: string[] = [];
     
@@ -132,7 +134,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
     }
 
     try {
-      const result = await saveReport(plates, createdBy);
+      const selectedDate = new Date(reportDate + 'T00:00:00');
+      const result = await saveReport(plates, createdBy, selectedDate);
 
       if (!result.success || !result.shareToken) {
         toast.error('Erro ao salvar relatório no banco de dados');
@@ -144,7 +147,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
 
       generateExcelReport({
         plates,
-        createdBy
+        createdBy,
+        reportDate: selectedDate
       });
 
       toast.success('Relatório disponível online!', {
@@ -217,23 +221,43 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
       {/* User Info */}
       <div className="bg-card rounded-2xl p-4 border border-border mb-4">
         <h3 className="font-semibold mb-3">Informações do Relatório</h3>
-        <div className="space-y-2">
-          <Label htmlFor="createdBy" className="text-sm">
-            Responsável pela contagem <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="createdBy"
-            value={createdBy}
-            onChange={(e) => setCreatedBy(e.target.value)}
-            placeholder="Digite seu nome"
-            className="h-10"
-            required
-          />
-          {!createdBy.trim() && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="createdBy" className="text-sm">
+              Responsável pela contagem <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="createdBy"
+              value={createdBy}
+              onChange={(e) => setCreatedBy(e.target.value)}
+              placeholder="Digite seu nome"
+              className="h-10"
+              required
+            />
+            {!createdBy.trim() && (
+              <p className="text-xs text-muted-foreground">
+                Campo obrigatório para gerar relatório
+              </p>
+            )}
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="reportDate" className="text-sm flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              Data da contagem <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="reportDate"
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              className="h-10"
+              max={format(new Date(), 'yyyy-MM-dd')}
+              required
+            />
             <p className="text-xs text-muted-foreground">
-              Campo obrigatório para gerar relatório
+              Selecione o dia em que o bate físico está sendo realizado
             </p>
-          )}
+          </div>
         </div>
       </div>
 

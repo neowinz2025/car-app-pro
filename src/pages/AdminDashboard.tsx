@@ -78,6 +78,8 @@ export default function AdminDashboard() {
   const [loadingShifts, setLoadingShifts] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [reportToDelete, setReportToDelete] = useState<string | null>(null);
+  const [deletePlateDialogOpen, setDeletePlateDialogOpen] = useState(false);
+  const [plateToDelete, setPlateToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -180,6 +182,26 @@ export default function AdminDashboard() {
     } finally {
       setDeleteDialogOpen(false);
       setReportToDelete(null);
+    }
+  };
+
+  const handleDeletePlate = async (plateId: string) => {
+    try {
+      const { error } = await supabase
+        .from('plate_records')
+        .delete()
+        .eq('id', plateId);
+
+      if (error) throw error;
+
+      setPlates(plates.filter(p => p.id !== plateId));
+      toast.success('Placa excluída com sucesso');
+    } catch (error) {
+      console.error('Error deleting plate:', error);
+      toast.error('Erro ao excluir placa');
+    } finally {
+      setDeletePlateDialogOpen(false);
+      setPlateToDelete(null);
     }
   };
 
@@ -343,6 +365,7 @@ export default function AdminDashboard() {
                           <th className="text-center py-3 px-4 font-medium">Loja</th>
                           <th className="text-center py-3 px-4 font-medium">Lava Jato</th>
                           <th className="text-left py-3 px-4 font-medium">Sessão</th>
+                          <th className="text-center py-3 px-4 font-medium">Ações</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -362,6 +385,18 @@ export default function AdminDashboard() {
                             </td>
                             <td className="py-3 px-4 text-muted-foreground font-mono text-xs">
                               {plate.session_id ? `${plate.session_id.slice(0, 8)}...` : '—'}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                  setPlateToDelete(plate.id);
+                                  setDeletePlateDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </td>
                           </tr>
                         ))}
@@ -650,6 +685,26 @@ export default function AdminDashboard() {
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => reportToDelete && handleDeleteReport(reportToDelete)}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deletePlateDialogOpen} onOpenChange={setDeletePlateDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar Exclusão de Placa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta placa? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => plateToDelete && handleDeletePlate(plateToDelete)}
               className="bg-destructive hover:bg-destructive/90"
             >
               Excluir

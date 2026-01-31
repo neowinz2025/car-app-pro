@@ -29,7 +29,8 @@ export function usePhysicalCountReports() {
 
   const saveReport = useCallback(async (
     plates: PlateRecord[],
-    createdBy: string
+    createdBy: string,
+    reportDate?: Date
   ): Promise<{ success: boolean; shareToken?: string; reportId?: string }> => {
     setLoading(true);
     setError(null);
@@ -41,13 +42,13 @@ export function usePhysicalCountReports() {
       const neither = plates.filter(p => !p.loja && !p.lavaJato);
 
       const shareToken = generateShareToken();
-      const reportDate = new Date();
-      const monthYear = format(reportDate, 'yyyy-MM');
+      const selectedReportDate = reportDate || new Date();
+      const monthYear = format(selectedReportDate, 'yyyy-MM');
 
       const { data, error: insertError } = await supabase
         .from('physical_count_reports')
         .insert({
-          report_date: reportDate.toISOString(),
+          report_date: selectedReportDate.toISOString(),
           month_year: monthYear,
           share_token: shareToken,
           plates_data: plates,

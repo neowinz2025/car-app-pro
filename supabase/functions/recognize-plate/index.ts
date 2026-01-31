@@ -62,12 +62,24 @@ Deno.serve(async (req) => {
     const data = await response.json();
     console.log('Plate Recognizer response:', JSON.stringify(data));
 
-    // Extract plates from response
-    const plates = data.results?.map((result: any) => ({
+    // Function to check if plate matches Mercosul format (ABC1D23)
+    const isMercosulPlate = (plate: string): boolean => {
+      // Mercosul format: 3 letters + 1 digit + 1 letter + 2 digits
+      const mercosulPattern = /^[A-Z]{3}\d[A-Z]\d{2}$/;
+      return mercosulPattern.test(plate);
+    };
+
+    // Extract plates from response and filter only Mercosul format
+    const allPlates = data.results?.map((result: any) => ({
       plate: result.plate?.toUpperCase() || '',
       confidence: result.score || 0,
       region: result.region?.code || 'unknown',
     })) || [];
+
+    // Filter to only include Mercosul plates
+    const plates = allPlates.filter((p: any) => isMercosulPlate(p.plate));
+
+    console.log(`Filtered ${allPlates.length} plates to ${plates.length} Mercosul plates`);
 
     return new Response(
       JSON.stringify({ plates, processing_time: data.processing_time }),

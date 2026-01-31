@@ -6,10 +6,11 @@ import { ptBR } from 'date-fns/locale';
 export interface ExcelGeneratorOptions {
   plates: PlateRecord[];
   createdBy?: string;
+  reportDate?: Date;
 }
 
 export function generateExcelReport(options: ExcelGeneratorOptions): void {
-  const { plates } = options;
+  const { plates, reportDate } = options;
 
   const loja = plates.filter(p => p.loja && !p.lavaJato).map(p => p.plate.toUpperCase());
   const lavaJato = plates.filter(p => p.lavaJato && !p.loja).map(p => p.plate.toUpperCase());
@@ -19,8 +20,9 @@ export function generateExcelReport(options: ExcelGeneratorOptions): void {
 
   const sheetData: any[][] = [];
 
+  const dateToUse = reportDate || new Date();
   sheetData.push(['BATE FISICO', '']);
-  sheetData.push([format(new Date(), 'dd/MM/yyyy', { locale: ptBR }), '']);
+  sheetData.push([format(dateToUse, 'dd/MM/yyyy', { locale: ptBR }), '']);
   sheetData.push(['LAVA', 'LOJA']);
 
   const maxRows = Math.max(lavaJato.length + both.length, loja.length + both.length);
@@ -140,7 +142,7 @@ export function generateExcelReport(options: ExcelGeneratorOptions): void {
 
   XLSX.utils.book_append_sheet(workbook, worksheet, 'BATE FISICO');
 
-  const fileName = `BATE FISICO ${format(new Date(), 'dd-MM-yyyy', { locale: ptBR })}.xlsx`;
+  const fileName = `BATE FISICO ${format(dateToUse, 'dd-MM-yyyy', { locale: ptBR })}.xlsx`;
 
   XLSX.writeFile(workbook, fileName);
 }
