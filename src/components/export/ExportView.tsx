@@ -251,7 +251,6 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
               value={reportDate}
               onChange={(e) => setReportDate(e.target.value)}
               className="h-10"
-              max={format(new Date(), 'yyyy-MM-dd')}
               required
             />
             <p className="text-xs text-muted-foreground">
