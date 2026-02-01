@@ -7,6 +7,16 @@ import { cn } from '@/lib/utils';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PlatesHistoryView } from './PlatesHistoryView';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface PlatesListProps {
   plates: PlateRecord[];
@@ -19,6 +29,7 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
   const [search, setSearch] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [plateToDelete, setPlateToDelete] = useState<string | null>(null);
 
   const filteredPlates = plates.filter(p => 
     p.plate.toLowerCase().includes(search.toLowerCase())
@@ -97,7 +108,7 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
                   {formatPlate(plate.plate)}
                 </span>
                 <button
-                  onClick={() => onRemovePlate(plate.id)}
+                  onClick={() => setPlateToDelete(plate.id)}
                   className="w-8 h-8 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
@@ -177,6 +188,32 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
           )}
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!plateToDelete} onOpenChange={() => setPlateToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta placa? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (plateToDelete) {
+                  onRemovePlate(plateToDelete);
+                  setPlateToDelete(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
