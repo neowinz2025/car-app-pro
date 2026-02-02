@@ -24,11 +24,16 @@ export function MonthlyReportsView() {
   }, [selectedMonth, getMonthlyReports]);
 
   const handleMonthChange = (direction: 'prev' | 'next') => {
-    const currentDate = new Date(selectedMonth + '-01');
-    const newDate = direction === 'prev'
-      ? new Date(currentDate.setMonth(currentDate.getMonth() - 1))
-      : new Date(currentDate.setMonth(currentDate.getMonth() + 1));
-    setSelectedMonth(format(newDate, 'yyyy-MM'));
+    const [year, month] = selectedMonth.split('-').map(Number);
+    const currentDate = new Date(year, month - 1, 1);
+
+    if (direction === 'prev') {
+      currentDate.setMonth(currentDate.getMonth() - 1);
+    } else {
+      currentDate.setMonth(currentDate.getMonth() + 1);
+    }
+
+    setSelectedMonth(format(currentDate, 'yyyy-MM'));
   };
 
   const handleDownloadExcel = (report: PhysicalCountReport) => {
