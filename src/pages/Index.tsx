@@ -7,6 +7,7 @@ import { StatsView } from '@/components/stats/StatsView';
 import { ExportView } from '@/components/export/ExportView';
 import { ShiftView } from '@/components/shift/ShiftView';
 import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
+import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
 import { toast } from 'sonner';
@@ -61,6 +62,8 @@ const Index = () => {
         return <ExportView plates={plates} onFillStep={fillStep} onClearPlates={clearPlates} />;
       case 'reports':
         return <MonthlyReportsView />;
+      case 'damaged':
+        return <DamagedVehiclesView />;
       case 'shift':
         return <ShiftView />;
       default:
