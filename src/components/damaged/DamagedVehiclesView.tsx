@@ -15,9 +15,11 @@ import { toast } from 'sonner';
 
 export function DamagedVehiclesView() {
   const [vehicles, setVehicles] = useState<DamagedVehicle[]>([]);
+  const [filteredVehicles, setFilteredVehicles] = useState<DamagedVehicle[]>([]);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPlate, setSelectedPlate] = useState('');
   const [searchPlate, setSearchPlate] = useState('');
+  const [filterSearchPlate, setFilterSearchPlate] = useState('');
   const [createdBy, setCreatedBy] = useState('');
   const [notes, setNotes] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -44,6 +46,17 @@ export function DamagedVehiclesView() {
       setShowPlateSuggestions(false);
     }
   }, [searchPlate]);
+
+  useEffect(() => {
+    if (filterSearchPlate.trim()) {
+      const filtered = vehicles.filter(vehicle =>
+        vehicle.plate.toLowerCase().includes(filterSearchPlate.toLowerCase())
+      );
+      setFilteredVehicles(filtered);
+    } else {
+      setFilteredVehicles(vehicles);
+    }
+  }, [filterSearchPlate, vehicles]);
 
   const loadVehicles = async () => {
     const data = await getAllDamagedVehicles();
@@ -131,9 +144,17 @@ export function DamagedVehiclesView() {
     plate.toLowerCase().includes(searchPlate.toLowerCase())
   );
 
+  const groupedByPlate = filteredVehicles.reduce((acc, vehicle) => {
+    if (!acc[vehicle.plate]) {
+      acc[vehicle.plate] = [];
+    }
+    acc[vehicle.plate].push(vehicle);
+    return acc;
+  }, {} as Record<string, DamagedVehicle[]>);
+
   return (
     <div className="flex flex-col h-full px-4 py-4 overflow-y-auto scrollbar-hide">
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
           <AlertTriangle className="w-5 h-5 text-red-500" />
         </div>
@@ -271,7 +292,19 @@ export function DamagedVehiclesView() {
         </Dialog>
       </div>
 
-      <div className="space-y-3">
+      <div className="mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por placa..."
+            value={filterSearchPlate}
+            onChange={(e) => setFilterSearchPlate(e.target.value.toUpperCase())}
+            className="pl-9 uppercase"
+          />
+        </div>
+      </div>
+
+      <div className="space-y-4">
         {loading && vehicles.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             Carregando registros...
@@ -285,17 +318,32 @@ export function DamagedVehiclesView() {
               </div>
             </CardContent>
           </Card>
+        ) : Object.keys(groupedByPlate).length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="text-center py-8 text-muted-foreground">
+                <Search className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>Nenhum veículo encontrado para "{filterSearchPlate}"</p>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
-          vehicles.map((vehicle) => (
+          Object.entries(groupedByPlate).map(([plate, plateVehicles]) => (
+            <div key={plate} className="space-y-3">
+              <div className="flex items-center gap-2 px-2">
+                <div className="text-sm font-bold">{plate}</div>
+                {plateVehicles.length > 1 && (
+                  <div className="text-xs bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full">
+                    {plateVehicles.length} registros
+                  </div>
+                )}
+              </div>
+              {plateVehicles.map((vehicle) => (
             <Card key={vehicle.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <AlertTriangle className="w-5 h-5 text-red-500" />
-                      {vehicle.plate}
-                    </CardTitle>
-                    <CardDescription className="text-xs mt-1">
+                    <CardDescription className="text-xs mb-1">
                       {format(new Date(vehicle.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                       {' • '}
                       {vehicle.created_by}
@@ -365,6 +413,8 @@ export function DamagedVehiclesView() {
                 )}
               </CardContent>
             </Card>
+              ))}
+            </div>
           ))
         )}
       </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, LogOut, FileText, Database, Trash2, Eye, Calendar, User, ClipboardList, Users } from 'lucide-react';
+import { Shield, LogOut, FileText, Database, Trash2, Eye, Calendar, User, ClipboardList, Users, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -250,7 +251,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="reports" className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-4 mb-8">
+          <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5 mb-8">
             <TabsTrigger value="reports">
               <FileText className="w-4 h-4 mr-2" />
               Relatórios
@@ -266,6 +267,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="shifts">
               <Users className="w-4 h-4 mr-2" />
               Turnos
+            </TabsTrigger>
+            <TabsTrigger value="damaged">
+              <AlertTriangle className="w-4 h-4 mr-2" />
+              Avarias
             </TabsTrigger>
           </TabsList>
 
@@ -667,6 +672,22 @@ export default function AdminDashboard() {
                     })}
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="damaged">
+            <Card className="max-w-4xl mx-auto">
+              <CardHeader>
+                <CardTitle>Veículos com Avarias</CardTitle>
+                <CardDescription>
+                  Gerenciamento de registros de veículos que chegaram com danos
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="h-[600px]">
+                  <DamagedVehiclesView />
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

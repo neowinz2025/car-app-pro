@@ -11,10 +11,10 @@ interface BottomNavProps {
 const tabs = [
   { id: 'scanner' as const, icon: Camera, label: 'Scanner' },
   { id: 'plates' as const, icon: List, label: 'Placas' },
-  { id: 'damaged' as const, icon: AlertTriangle, label: 'Avarias' },
   { id: 'export' as const, icon: Download, label: 'Exportar' },
   { id: 'reports' as const, icon: FileText, label: 'Relatórios' },
   { id: 'shift' as const, icon: ClipboardList, label: 'Turno' },
+  { id: 'damaged' as const, icon: AlertTriangle, label: 'Avarias' },
 ];
 
 export function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
