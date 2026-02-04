@@ -32,7 +32,7 @@ Value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdt
 **Variável 3:**
 ```
 Key: PLATE_RECOGNIZER_API_KEY
-Value: 4b0097b3303c2cd48d998a366d9fd356083d9af6
+Value: ef9abebfd81c5d85c9a6e9aa762947f1549b4fdf
 ```
 
 ### 4. Faça um Novo Deploy
