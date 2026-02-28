@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 
 interface AdminSession {
   username: string;
+  role: string;
   token: string;
   timestamp: number;
 }
@@ -10,6 +11,7 @@ export function useAdminAuth() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [adminUsername, setAdminUsername] = useState<string>('');
+  const [adminRole, setAdminRole] = useState<string>('');
 
   useEffect(() => {
     const validateSession = () => {
@@ -22,7 +24,7 @@ export function useAdminAuth() {
 
         const adminData: AdminSession = JSON.parse(adminDataStr);
 
-        if (!adminData.username || !adminData.token || !adminData.timestamp) {
+        if (!adminData.username || !adminData.token || !adminData.timestamp || !adminData.role) {
           localStorage.removeItem('admin_session');
           setIsLoading(false);
           return;
@@ -34,6 +36,7 @@ export function useAdminAuth() {
         if (now - adminData.timestamp < sessionDuration) {
           setIsAuthenticated(true);
           setAdminUsername(adminData.username);
+          setAdminRole(adminData.role);
         } else {
           localStorage.removeItem('admin_session');
         }
@@ -92,13 +95,14 @@ export function useAdminAuth() {
 
       const data = await response.json();
 
-      if (!data.success || !data.token || !data.admin) {
+      if (!data.success || !data.token || !data.admin || !data.admin.role) {
         console.error('Invalid response from server');
         return false;
       }
 
       const sessionData: AdminSession = {
         username: data.admin.username,
+        role: data.admin.role,
         token: data.token,
         timestamp: Date.now()
       };
@@ -107,6 +111,7 @@ export function useAdminAuth() {
 
       setIsAuthenticated(true);
       setAdminUsername(data.admin.username);
+      setAdminRole(data.admin.role);
       return true;
     } catch (error) {
       console.error('Login error:', error);
@@ -118,6 +123,7 @@ export function useAdminAuth() {
     localStorage.removeItem('admin_session');
     setIsAuthenticated(false);
     setAdminUsername('');
+    setAdminRole('');
   };
 
   const getSessionToken = (): string | null => {
@@ -133,10 +139,16 @@ export function useAdminAuth() {
     }
   };
 
+  const isSuperAdmin = () => {
+    return adminRole === 'super_admin';
+  };
+
   return {
     isAuthenticated,
     isLoading,
     adminUsername,
+    adminRole,
+    isSuperAdmin,
     login,
     logout,
     getSessionToken

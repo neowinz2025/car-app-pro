@@ -11,6 +11,7 @@ const corsHeaders = {
 interface CreateAdminRequest {
   username: string;
   password: string;
+  role?: string;
   masterKey: string;
 }
 
@@ -23,7 +24,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { username, password, masterKey }: CreateAdminRequest = await req.json();
+    const { username, password, role = 'admin', masterKey }: CreateAdminRequest = await req.json();
 
     const MASTER_KEY = Deno.env.get("ADMIN_MASTER_KEY") || "secure_master_key_change_this";
 
@@ -37,6 +38,13 @@ Deno.serve(async (req) => {
     if (!username || !password) {
       return new Response(
         JSON.stringify({ error: "Username and password are required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (role && !['admin', 'super_admin'].includes(role)) {
+      return new Response(
+        JSON.stringify({ error: "Invalid role. Must be 'admin' or 'super_admin'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -89,9 +97,10 @@ Deno.serve(async (req) => {
       .insert({
         username,
         password_hash: passwordHash,
+        role,
         created_at: new Date().toISOString(),
       })
-      .select("id, username, created_at")
+      .select("id, username, role, created_at")
       .single();
 
     if (error) {

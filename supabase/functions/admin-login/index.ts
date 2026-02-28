@@ -17,6 +17,7 @@ interface Admin {
   id: string;
   username: string;
   password_hash: string;
+  role: string;
   created_at: string;
   last_login: string | null;
 }
@@ -54,7 +55,7 @@ Deno.serve(async (req) => {
 
     const { data: admin, error } = await supabase
       .from("admins")
-      .select("id, username, password_hash, created_at, last_login")
+      .select("id, username, password_hash, role, created_at, last_login")
       .eq("username", username)
       .maybeSingle();
 
@@ -94,6 +95,7 @@ Deno.serve(async (req) => {
         admin: {
           id: admin.id,
           username: admin.username,
+          role: admin.role,
         }
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

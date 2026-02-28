@@ -71,7 +71,7 @@ interface ShiftHandover {
 }
 
 export default function AdminDashboard() {
-  const { isAuthenticated, isLoading, adminUsername, logout } = useAdminAuth();
+  const { isAuthenticated, isLoading, adminUsername, adminRole, isSuperAdmin, logout } = useAdminAuth();
   const navigate = useNavigate();
   const [reports, setReports] = useState<Report[]>([]);
   const [plates, setPlates] = useState<PlateRecord[]>([]);
@@ -240,7 +240,10 @@ export default function AdminDashboard() {
               </div>
               <div>
                 <h1 className="text-xl font-bold">Painel Administrativo</h1>
-                <p className="text-xs text-muted-foreground">Bem-vindo, {adminUsername}</p>
+                <p className="text-xs text-muted-foreground">
+                  Bem-vindo, {adminUsername} {isSuperAdmin() && <span className="text-primary font-semibold">(Super Admin)</span>}
+                  {adminRole === 'admin' && <span className="text-blue-600 font-semibold">(Admin)</span>}
+                </p>
               </div>
             </div>
             <Button variant="outline" onClick={handleLogout}>
@@ -278,10 +281,12 @@ export default function AdminDashboard() {
               <User className="w-4 h-4 mr-2" />
               Usuários
             </TabsTrigger>
-            <TabsTrigger value="api-keys">
-              <Key className="w-4 h-4 mr-2" />
-              API Keys
-            </TabsTrigger>
+            {isSuperAdmin() && (
+              <TabsTrigger value="api-keys">
+                <Key className="w-4 h-4 mr-2" />
+                API Keys
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="reports">
@@ -716,19 +721,21 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="api-keys">
-            <Card className="max-w-4xl mx-auto">
-              <CardHeader>
-                <CardTitle>Chaves API - Plate Recognizer</CardTitle>
-                <CardDescription>
-                  Sistema de rotação automática de chaves API
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ApiKeysManagement />
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {isSuperAdmin() && (
+            <TabsContent value="api-keys">
+              <Card className="max-w-4xl mx-auto">
+                <CardHeader>
+                  <CardTitle>Chaves API - Plate Recognizer</CardTitle>
+                  <CardDescription>
+                    Sistema de rotação automática de chaves API
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ApiKeysManagement />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
         </Tabs>
       </div>
 
