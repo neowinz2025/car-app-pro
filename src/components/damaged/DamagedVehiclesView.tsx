@@ -195,34 +195,41 @@ export function DamagedVehiclesView() {
               <div className="space-y-3">
                 <Label htmlFor="plate" className="text-base font-semibold">Placa do Veículo</Label>
                 <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
                   <Input
                     id="plate"
-                    placeholder="AAA1A23"
+                    placeholder="AAA1A23 - Buscar ou digitar"
                     value={searchPlate}
                     onChange={(e) => {
                       setSearchPlate(e.target.value.toUpperCase());
                       setSelectedPlate(e.target.value.toUpperCase());
                     }}
-                    className="uppercase h-14 text-xl font-bold text-center rounded-2xl border-2"
+                    className="uppercase h-14 text-lg font-bold pl-12 rounded-2xl border-2"
                   />
                   {showPlateSuggestions && filteredPlates.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    <div className="absolute z-50 w-full mt-1 bg-background border-2 border-primary/20 rounded-xl shadow-2xl max-h-60 overflow-y-auto">
+                      <div className="p-2 text-xs font-semibold text-muted-foreground border-b">
+                        {filteredPlates.length} placa(s) encontrada(s)
+                      </div>
                       {filteredPlates.slice(0, 10).map((plate) => (
                         <button
                           key={plate}
                           type="button"
-                          className="w-full px-3 py-2 text-left hover:bg-accent flex items-center gap-2"
+                          className="w-full px-4 py-3 text-left hover:bg-primary/10 flex items-center gap-3 transition-colors border-b last:border-0"
                           onClick={() => selectPlateFromSuggestion(plate)}
                         >
-                          <Search className="w-4 h-4 text-muted-foreground" />
-                          {plate}
+                          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                            <Search className="w-4 h-4 text-primary" />
+                          </div>
+                          <span className="font-mono font-bold text-lg">{plate}</span>
                         </button>
                       ))}
                     </div>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Digite para buscar placas já cadastradas ou insira manualmente
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Search className="w-3 h-3" />
+                  Digite 3 ou mais caracteres para buscar placas cadastradas
                 </p>
               </div>
 

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, LogOut, FileText, Database, Trash2, Eye, Calendar, User, ClipboardList, Users, AlertTriangle, Key } from 'lucide-react';
+import { Shield, FileText, Database, Trash2, Eye, Calendar, User, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,7 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { UsersManagement } from '@/components/users/UsersManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
-import { cn } from '@/lib/utils';
+import { AdminDrawer, AdminTabType } from '@/components/layout/AdminDrawer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -74,6 +73,8 @@ interface ShiftHandover {
 export default function AdminDashboard() {
   const { isAuthenticated, isLoading, adminUsername, adminRole, isSuperAdmin, logout } = useAdminAuth();
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState<AdminTabType>('reports');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [reports, setReports] = useState<Report[]>([]);
   const [plates, setPlates] = useState<PlateRecord[]>([]);
   const [shifts, setShifts] = useState<ShiftHandover[]>([]);
@@ -230,70 +231,10 @@ export default function AdminDashboard() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Shield className="w-5 h-5 text-primary" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">Painel Administrativo</h1>
-                <p className="text-xs text-muted-foreground">
-                  Bem-vindo, {adminUsername} {isSuperAdmin() && <span className="text-primary font-semibold">(Super Admin)</span>}
-                  {adminRole === 'admin' && <span className="text-blue-600 font-semibold">(Admin)</span>}
-                </p>
-              </div>
-            </div>
-            <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="reports" className="w-full">
-          <TabsList className={cn(
-            "grid w-full max-w-6xl mx-auto mb-8",
-            isSuperAdmin() ? "grid-cols-7" : "grid-cols-6"
-          )}>
-            <TabsTrigger value="reports">
-              <FileText className="w-4 h-4 mr-2" />
-              Relatórios
-            </TabsTrigger>
-            <TabsTrigger value="plates">
-              <Database className="w-4 h-4 mr-2" />
-              Placas
-            </TabsTrigger>
-            <TabsTrigger value="bate-fisco">
-              <ClipboardList className="w-4 h-4 mr-2" />
-              Bate Fisco
-            </TabsTrigger>
-            <TabsTrigger value="shifts">
-              <Users className="w-4 h-4 mr-2" />
-              Turnos
-            </TabsTrigger>
-            <TabsTrigger value="damaged">
-              <AlertTriangle className="w-4 h-4 mr-2" />
-              Avarias
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <User className="w-4 h-4 mr-2" />
-              Usuários
-            </TabsTrigger>
-            {isSuperAdmin() && (
-              <TabsTrigger value="api-keys">
-                <Key className="w-4 h-4 mr-2" />
-                API Keys
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          <TabsContent value="reports">
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'reports':
+        return (
             <Card>
               <CardHeader>
                 <CardTitle>Relatórios Gerados</CardTitle>
@@ -360,9 +301,9 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="plates">
+        );
+      case 'plates':
+        return (
             <Card>
               <CardHeader>
                 <CardTitle>Placas Coletadas</CardTitle>
@@ -430,9 +371,9 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="bate-fisco">
+        );
+      case 'bate-fisco':
+        return (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
@@ -557,9 +498,9 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
-
-          <TabsContent value="shifts">
+        );
+      case 'shifts':
+        return (
             <Card>
               <CardHeader>
                 <CardTitle>Passagens de Turno</CardTitle>
@@ -693,9 +634,9 @@ export default function AdminDashboard() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="damaged">
+        );
+      case 'damaged':
+        return (
             <Card className="max-w-4xl mx-auto">
               <CardHeader>
                 <CardTitle>Veículos com Avarias</CardTitle>
@@ -709,9 +650,9 @@ export default function AdminDashboard() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="users">
+        );
+      case 'users':
+        return (
             <Card className="max-w-4xl mx-auto">
               <CardHeader>
                 <CardTitle>Gerenciamento de Usuários</CardTitle>
@@ -723,10 +664,10 @@ export default function AdminDashboard() {
                 <UsersManagement adminUsername={adminUsername || 'admin'} />
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {isSuperAdmin() && (
-            <TabsContent value="api-keys">
+        );
+      case 'api-keys':
+        if (!isSuperAdmin()) return null;
+        return (
               <Card className="max-w-4xl mx-auto">
                 <CardHeader>
                   <CardTitle>Chaves API - Plate Recognizer</CardTitle>
@@ -738,10 +679,57 @@ export default function AdminDashboard() {
                   <ApiKeysManagement />
                 </CardContent>
               </Card>
-            </TabsContent>
-          )}
-        </Tabs>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="border-b border-border bg-card sticky top-0 z-30">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsDrawerOpen(true)}
+                className="rounded-lg"
+              >
+                <Menu className="w-5 h-5" />
+              </Button>
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Shield className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold">Painel Administrativo</h1>
+                <p className="text-xs text-muted-foreground">
+                  {adminUsername}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
+
+      <main className="flex-1 overflow-y-auto">
+        <div className="container mx-auto px-4 py-6">
+          {renderContent()}
+        </div>
+      </main>
+
+      <AdminDrawer
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isOpen={isDrawerOpen}
+        onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
+        onLogout={handleLogout}
+        adminUsername={adminUsername || 'admin'}
+        adminRole={adminRole || 'admin'}
+        isSuperAdmin={isSuperAdmin()}
+      />
+
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
