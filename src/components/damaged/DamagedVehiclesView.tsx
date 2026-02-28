@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useDamagedVehicles, DamagedVehicle } from '@/hooks/useDamagedVehicles';
 import { usePlates } from '@/hooks/usePlates';
+import { usePlateCache } from '@/hooks/usePlateCache';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -30,6 +31,7 @@ export function DamagedVehiclesView() {
 
   const { loading, getAllDamagedVehicles, createDamagedVehicle, deleteDamagedVehicle } = useDamagedVehicles();
   const { plates } = usePlates();
+  const { searchPlates } = usePlateCache();
 
   useEffect(() => {
     loadVehicles();
@@ -46,9 +48,20 @@ export function DamagedVehiclesView() {
   }, []);
 
   useEffect(() => {
-    const uniquePlates = Array.from(new Set(plates.map(p => p.plate)));
-    setAvailablePlates(uniquePlates);
-  }, [plates]);
+    const loadPlatesForAutocomplete = async () => {
+      if (searchPlate.length >= 3) {
+        const dbPlates = await searchPlates(searchPlate);
+        const currentSessionPlates = plates.map(p => p.plate);
+        const allPlates = Array.from(new Set([...currentSessionPlates, ...dbPlates]));
+        setAvailablePlates(allPlates);
+      } else {
+        const uniquePlates = Array.from(new Set(plates.map(p => p.plate)));
+        setAvailablePlates(uniquePlates);
+      }
+    };
+
+    loadPlatesForAutocomplete();
+  }, [plates, searchPlate, searchPlates]);
 
   useEffect(() => {
     if (searchPlate.length >= 3) {
@@ -249,7 +262,7 @@ export function DamagedVehiclesView() {
                 </div>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Search className="w-3 h-3" />
-                  Digite 3 ou mais caracteres para buscar placas cadastradas
+                  Digite 3 ou mais caracteres para buscar no histórico
                 </p>
               </div>
 
