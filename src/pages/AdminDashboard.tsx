@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
+import { UsersManagement } from '@/components/users/UsersManagement';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -251,7 +252,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="reports" className="w-full">
-          <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-5 mb-8">
+          <TabsList className="grid w-full max-w-6xl mx-auto grid-cols-6 mb-8">
             <TabsTrigger value="reports">
               <FileText className="w-4 h-4 mr-2" />
               Relatórios
@@ -271,6 +272,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="damaged">
               <AlertTriangle className="w-4 h-4 mr-2" />
               Avarias
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <User className="w-4 h-4 mr-2" />
+              Usuários
             </TabsTrigger>
           </TabsList>
 
@@ -688,6 +693,20 @@ export default function AdminDashboard() {
                 <div className="h-[600px]">
                   <DamagedVehiclesView />
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card className="max-w-4xl mx-auto">
+              <CardHeader>
+                <CardTitle>Gerenciamento de Usuários</CardTitle>
+                <CardDescription>
+                  Cadastro e controle de usuários do sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <UsersManagement adminUsername={adminUsername || 'admin'} />
               </CardContent>
             </Card>
           </TabsContent>
