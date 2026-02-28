@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2, Database } from 'lucide-react';
+import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2, Database, ScanLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -21,7 +21,6 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
   const [showManualInput, setShowManualInput] = useState(false);
   const [showSuccessFlash, setShowSuccessFlash] = useState(false);
   const [detectedPlateText, setDetectedPlateText] = useState('');
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const {
     videoRef,
@@ -94,6 +93,28 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     }
   };
 
+  const handleCapturePlate = async () => {
+    if (!isActive || !activeStep) {
+      toast.error('Câmera não está ativa', {
+        description: 'Inicie a câmera primeiro',
+      });
+      return;
+    }
+
+    if (isProcessing) {
+      return; // Already processing
+    }
+
+    const frame = captureFrame();
+    if (frame) {
+      await recognizePlate(frame);
+    } else {
+      toast.error('Erro ao capturar imagem', {
+        description: 'Tente novamente',
+      });
+    }
+  };
+
   const handleManualAdd = async () => {
     if (manualPlate.trim()) {
       const success = await onAddPlate(manualPlate.trim());
@@ -121,32 +142,6 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       }
     }
   };
-
-  // Auto-scan when camera is active
-  useEffect(() => {
-    if (isActive && activeStep) {
-      // Start scanning interval
-      scanIntervalRef.current = setInterval(async () => {
-        const frame = captureFrame();
-        if (frame) {
-          await recognizePlate(frame);
-        }
-      }, 2500); // Scan every 2.5 seconds
-    } else {
-      // Clear interval when camera stops
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
-      }
-    }
-
-    return () => {
-      if (scanIntervalRef.current) {
-        clearInterval(scanIntervalRef.current);
-        scanIntervalRef.current = null;
-      }
-    };
-  }, [isActive, activeStep, captureFrame, recognizePlate]);
 
   // Stop camera and reset when component unmounts or step changes
   useEffect(() => {
@@ -223,31 +218,39 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
           <div className="absolute inset-0 pointer-events-none">
             {/* Top instruction */}
             <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full">
-              <span className="text-white text-sm font-medium">Aponte para a placa do veículo</span>
+              <span className="text-white text-sm font-medium">
+                {isProcessing ? 'Reconhecendo placa...' : 'Centralize a placa e clique em Capturar'}
+              </span>
             </div>
 
             {/* Scanning frame - Plate-shaped rectangle */}
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-28 border-2 border-primary/50 rounded-lg">
+            <div className={cn(
+              "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-28 border-2 rounded-lg transition-colors",
+              isProcessing ? "border-warning" : "border-primary/50"
+            )}>
               {/* Corner markers */}
-              <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-              <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-              <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-              <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
-
-              {/* Scan line animation */}
               <div className={cn(
-                "absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line",
-                isProcessing && "bg-warning"
+                "absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 rounded-tl-lg transition-colors",
+                isProcessing ? "border-warning" : "border-primary"
               )} />
-            </div>
+              <div className={cn(
+                "absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 rounded-tr-lg transition-colors",
+                isProcessing ? "border-warning" : "border-primary"
+              )} />
+              <div className={cn(
+                "absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 rounded-bl-lg transition-colors",
+                isProcessing ? "border-warning" : "border-primary"
+              )} />
+              <div className={cn(
+                "absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 rounded-br-lg transition-colors",
+                isProcessing ? "border-warning" : "border-primary"
+              )} />
 
-            {/* Processing indicator */}
-            {isProcessing && (
-              <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-warning/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-white" />
-                <span className="text-sm font-medium text-white">Reconhecendo placa...</span>
-              </div>
-            )}
+              {/* Scan line animation - only when processing */}
+              {isProcessing && (
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-warning animate-scan-line" />
+              )}
+            </div>
           </div>
         )}
 
@@ -294,26 +297,52 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
             )}
           </Button>
 
-          <div className="flex flex-col items-center gap-2">
-            <Button
-              onClick={handleScanToggle}
-              className={cn(
-                "w-16 h-16 rounded-full transition-all duration-200",
-                isActive
-                  ? "bg-destructive hover:bg-destructive/90"
-                  : "bg-primary hover:bg-primary/90"
+          <div className="flex items-center gap-3">
+            {/* Camera toggle button */}
+            <div className="flex flex-col items-center gap-2">
+              <Button
+                onClick={handleScanToggle}
+                className={cn(
+                  "w-16 h-16 rounded-full transition-all duration-200",
+                  isActive
+                    ? "bg-destructive hover:bg-destructive/90"
+                    : "bg-primary hover:bg-primary/90"
+                )}
+              >
+                {isActive ? (
+                  <X className="w-7 h-7" />
+                ) : (
+                  <Camera className="w-7 h-7" />
+                )}
+              </Button>
+              {!isActive && (
+                <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
+                  Iniciar
+                </span>
               )}
-            >
-              {isActive ? (
-                <X className="w-7 h-7" />
-              ) : (
-                <Camera className="w-7 h-7" />
-              )}
-            </Button>
-            {!isActive && (
-              <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
-                Iniciar
-              </span>
+            </div>
+
+            {/* Capture button - only visible when camera is active */}
+            {isActive && (
+              <div className="flex flex-col items-center gap-2">
+                <Button
+                  onClick={handleCapturePlate}
+                  disabled={isProcessing}
+                  className={cn(
+                    "w-16 h-16 rounded-full transition-all duration-200",
+                    "bg-success hover:bg-success/90 shadow-lg shadow-success/30"
+                  )}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-7 h-7 animate-spin" />
+                  ) : (
+                    <ScanLine className="w-7 h-7" />
+                  )}
+                </Button>
+                <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
+                  Capturar
+                </span>
+              </div>
             )}
           </div>
 
@@ -358,7 +387,7 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
           )} />
           <span className="text-sm text-muted-foreground">
             {isActive && isProcessing ? 'Reconhecendo placa...' :
-             isActive ? 'Escaneando automaticamente' :
+             isActive ? 'Câmera pronta - clique em Capturar' :
              error ? 'Erro na câmera' : 'Aguardando'}
           </span>
         </div>
