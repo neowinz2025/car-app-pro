@@ -33,44 +33,18 @@ export function usePlates() {
   const [activeStep, setActiveStep] = useState<ActiveStep>(null);
 
   useEffect(() => {
-    loadPlatesFromDatabase();
+    // Only load current session plates from localStorage on mount
+    // Don't load from database to avoid confusion with historical data
+    const currentPlates = loadPlates();
+    setPlates(currentPlates);
   }, []);
-
-  const loadPlatesFromDatabase = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('plate_records')
-        .select('*')
-        .order('timestamp', { ascending: false });
-
-      if (error) {
-        console.error('Error loading plates from database:', error);
-        return;
-      }
-
-      if (data) {
-        const dbPlates: PlateRecord[] = data.map((record: any) => ({
-          id: record.id,
-          plate: record.plate,
-          timestamp: new Date(record.timestamp),
-          loja: record.loja || false,
-          lavaJato: record.lava_jato || false,
-        }));
-
-        setPlates(dbPlates);
-        savePlates(dbPlates);
-      }
-    } catch (error) {
-      console.error('Error loading plates from database:', error);
-    }
-  };
 
   const addPlate = useCallback(async (plateText: string) => {
     const normalizedPlate = plateText.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     if (normalizedPlate.length < 7) return false;
 
-    // Check if plate already exists in the CURRENT STEP
+    // Check if plate already exists in the CURRENT SESSION and CURRENT STEP
     const existsInCurrentStep = plates.some(p => {
       if (p.plate !== normalizedPlate) return false;
       if (activeStep === 'loja') return p.loja;
@@ -79,17 +53,17 @@ export function usePlates() {
     });
 
     if (existsInCurrentStep) {
-      console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep}`);
+      console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep} na sessão atual`);
       return false;
     }
 
     const timestamp = new Date();
 
-    // Check if plate exists but in different step - update it
+    // Check if plate exists in current session but in different step - update it
     const existingPlate = plates.find(p => p.plate === normalizedPlate);
 
     if (existingPlate) {
-      // Update existing plate with new step
+      // Update existing plate in current session with new step
       const updates: Partial<PlateRecord> = {
         timestamp,
         ...(activeStep === 'loja' ? { loja: true } : {}),
@@ -104,7 +78,7 @@ export function usePlates() {
         return updated;
       });
     } else {
-      // Add new plate
+      // Add new plate to current session
       const newPlate: PlateRecord = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         plate: normalizedPlate,
@@ -120,6 +94,7 @@ export function usePlates() {
       });
     }
 
+    // Always save to database (allows same plate multiple times across different sessions)
     try {
       const { error } = await supabase
         .from('plate_records')
