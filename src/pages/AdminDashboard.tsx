@@ -256,7 +256,10 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="reports" className="w-full">
-          <TabsList className="grid w-full max-w-6xl mx-auto grid-cols-7 mb-8">
+          <TabsList className={cn(
+            "grid w-full max-w-6xl mx-auto mb-8",
+            isSuperAdmin() ? "grid-cols-7" : "grid-cols-6"
+          )}>
             <TabsTrigger value="reports">
               <FileText className="w-4 h-4 mr-2" />
               Relatórios

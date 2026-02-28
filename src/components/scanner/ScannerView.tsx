@@ -291,8 +291,8 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         {/* Overlay when camera is active */}
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
-            {/* Top controls - MOVED HERE */}
-            <div className="absolute top-3 left-0 right-0 flex items-center justify-between px-4 pointer-events-auto z-20">
+            {/* Top controls */}
+            <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-auto z-20">
               {/* Flashlight */}
               <Button
                 variant="secondary"
@@ -307,30 +307,6 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
                 )}
               </Button>
 
-              {/* Capture button */}
-              <Button
-                onClick={handleCapturePlate}
-                disabled={isProcessing}
-                className={cn(
-                  "h-12 px-6 rounded-full font-bold text-base shadow-xl",
-                  isProcessing
-                    ? "bg-yellow-500 border-2 border-yellow-300"
-                    : "bg-green-500 hover:bg-green-600 border-2 border-green-300"
-                )}
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Analisando...
-                  </>
-                ) : (
-                  <>
-                    <Camera className="w-5 h-5 mr-2" />
-                    CAPTURAR
-                  </>
-                )}
-              </Button>
-
               {/* Close button */}
               <Button
                 onClick={handleScanToggle}
@@ -339,6 +315,32 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
                 className="w-12 h-12 rounded-full bg-red-500/90 backdrop-blur-sm border-2 border-white/30 hover:bg-red-600"
               >
                 <X className="w-6 h-6 text-white" />
+              </Button>
+            </div>
+
+            {/* Capture button at bottom */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto z-20">
+              <Button
+                onClick={handleCapturePlate}
+                disabled={isProcessing}
+                className={cn(
+                  "h-16 px-8 rounded-full font-bold text-lg shadow-2xl",
+                  isProcessing
+                    ? "bg-yellow-500 hover:bg-yellow-600 border-4 border-yellow-300"
+                    : "bg-green-500 hover:bg-green-600 border-4 border-green-300"
+                )}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-6 h-6 mr-2" />
+                    CAPTURAR
+                  </>
+                )}
               </Button>
             </div>
 
