@@ -59,6 +59,8 @@ export default function UserLogin() {
 
       const data = await response.json();
 
+      console.log('Login response:', { status: response.status, data });
+
       if (!response.ok) {
         throw new Error(data.error || 'Erro ao fazer login');
       }

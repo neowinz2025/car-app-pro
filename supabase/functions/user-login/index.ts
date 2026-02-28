@@ -42,15 +42,27 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log('Searching for CPF:', cleanCPF);
+
     const { data: user, error: userError } = await supabase
       .from('users')
       .select('*')
       .eq('cpf', cleanCPF)
       .maybeSingle();
 
-    if (userError || !user) {
+    console.log('Query result:', { user, userError });
+
+    if (userError) {
+      console.error('Database error:', userError);
       return new Response(
-        JSON.stringify({ error: 'CPF não encontrado' }),
+        JSON.stringify({ error: 'Erro ao buscar usuário: ' + userError.message }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!user) {
+      return new Response(
+        JSON.stringify({ error: 'CPF não encontrado no sistema' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
