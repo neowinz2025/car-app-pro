@@ -9,10 +9,31 @@ function loadPlates(): PlateRecord[] {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return parsed.map((p: any) => ({
+      const plates = parsed.map((p: any) => ({
         ...p,
         timestamp: new Date(p.timestamp),
       }));
+
+      // Check if plates are from a previous day - if so, clear them
+      if (plates.length > 0) {
+        const now = new Date();
+        const oldestPlate = plates[plates.length - 1];
+        const plateDate = new Date(oldestPlate.timestamp);
+
+        // If the session is from a different day, clear it
+        const isSameDay =
+          plateDate.getDate() === now.getDate() &&
+          plateDate.getMonth() === now.getMonth() &&
+          plateDate.getFullYear() === now.getFullYear();
+
+        if (!isSameDay) {
+          console.log('Clearing old session from different day');
+          localStorage.removeItem(STORAGE_KEY);
+          return [];
+        }
+      }
+
+      return plates;
     }
   } catch (e) {
     console.error('Failed to load plates:', e);
