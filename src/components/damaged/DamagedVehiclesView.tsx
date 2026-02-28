@@ -32,6 +32,16 @@ export function DamagedVehiclesView() {
 
   useEffect(() => {
     loadVehicles();
+
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session);
+        setCreatedBy(sessionData.name || '');
+      } catch (error) {
+        console.error('Error loading user session:', error);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -219,6 +229,7 @@ export function DamagedVehiclesView() {
                   placeholder="Seu nome"
                   value={createdBy}
                   onChange={(e) => setCreatedBy(e.target.value)}
+                  disabled
                 />
               </div>
 

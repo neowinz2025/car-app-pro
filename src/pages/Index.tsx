@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { BottomNav, TabType } from '@/components/layout/BottomNav';
 import { ScannerView } from '@/components/scanner/ScannerView';
@@ -13,8 +14,28 @@ import { usePlates } from '@/hooks/usePlates';
 import { toast } from 'sonner';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('scanner');
   const hasShownWelcome = useRef(false);
+
+  useEffect(() => {
+    const session = localStorage.getItem('user_session');
+    if (!session) {
+      navigate('/login');
+      return;
+    }
+
+    try {
+      const sessionData = JSON.parse(session);
+      if (!sessionData.id || !sessionData.name) {
+        localStorage.removeItem('user_session');
+        navigate('/login');
+      }
+    } catch (error) {
+      localStorage.removeItem('user_session');
+      navigate('/login');
+    }
+  }, [navigate]);
   const {
     plates,
     activeStep,

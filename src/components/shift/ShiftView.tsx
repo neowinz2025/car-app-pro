@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Car, 
   Wrench, 
@@ -29,7 +29,7 @@ import { toast } from 'sonner';
 export function ShiftView() {
   const [showHistory, setShowHistory] = useState(false);
   const [registeredBy, setRegisteredBy] = useState('');
-  
+
   const {
     currentShift,
     history,
@@ -41,6 +41,18 @@ export function ShiftView() {
     saveShift,
     setShiftType,
   } = useShiftHandover();
+
+  useEffect(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session);
+        setRegisteredBy(sessionData.name || '');
+      } catch (error) {
+        console.error('Error loading user session:', error);
+      }
+    }
+  }, []);
 
   const [copied, setCopied] = useState(false);
   const shiftTypes: ShiftType[] = ['manha', 'noite', 'madrugada'];
@@ -316,6 +328,7 @@ ${registeredBy ? `\n👤 Registrado por: *${registeredBy}*` : ''}`;
             value={registeredBy}
             onChange={(e) => setRegisteredBy(e.target.value)}
             className="rounded-xl"
+            disabled
           />
         </div>
 

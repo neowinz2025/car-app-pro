@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Download, FileSpreadsheet, Eye, Store, Droplets, Check, FileText, Share2, Copy, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlateRecord } from '@/types/plate';
@@ -22,6 +22,18 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const [createdBy, setCreatedBy] = useState<string>('');
   const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const { saveReport } = usePhysicalCountReports();
+
+  useEffect(() => {
+    const session = localStorage.getItem('user_session');
+    if (session) {
+      try {
+        const sessionData = JSON.parse(session);
+        setCreatedBy(sessionData.name || '');
+      } catch (error) {
+        console.error('Error loading user session:', error);
+      }
+    }
+  }, []);
 
   const formatPlate = (plate: string) => {
     if (plate.length === 7) {
@@ -233,6 +245,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
               placeholder="Digite seu nome"
               className="h-10"
               required
+              disabled
             />
             {!createdBy.trim() && (
               <p className="text-xs text-muted-foreground">
