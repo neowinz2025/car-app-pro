@@ -148,6 +148,30 @@ export function useDamagedVehicles() {
           })
           .eq('id', vehicle.id);
 
+        const photoFilesToDelete: string[] = [];
+        for (const photo of photoUrls) {
+          const urlParts = photo.photo_url.split('/damaged-vehicles/');
+          if (urlParts.length > 1) {
+            const path = decodeURIComponent(urlParts[1]);
+            photoFilesToDelete.push(path);
+          }
+        }
+
+        if (photoFilesToDelete.length > 0) {
+          const { error: deletePhotosError } = await supabase.storage
+            .from('damaged-vehicles')
+            .remove(photoFilesToDelete);
+
+          if (deletePhotosError) {
+            console.warn('Error deleting photo files from storage:', deletePhotosError);
+          }
+        }
+
+        await supabase
+          .from('damaged_vehicle_photos')
+          .delete()
+          .eq('damaged_vehicle_id', vehicle.id);
+
         toast.success('Veículo registrado e PDF gerado com sucesso!');
       } catch (pdfError) {
         console.error('Error generating PDF:', pdfError);
@@ -174,22 +198,7 @@ export function useDamagedVehicles() {
         .eq('id', vehicleId)
         .single();
 
-      const { data: photos } = await supabase
-        .from('damaged_vehicle_photos')
-        .select('photo_url')
-        .eq('damaged_vehicle_id', vehicleId);
-
       const filesToDelete: string[] = [];
-
-      if (photos && photos.length > 0) {
-        for (const photo of photos) {
-          const urlParts = photo.photo_url.split('/damaged-vehicles/');
-          if (urlParts.length > 1) {
-            const path = decodeURIComponent(urlParts[1]);
-            filesToDelete.push(path);
-          }
-        }
-      }
 
       if (vehicle?.pdf_url) {
         const urlParts = vehicle.pdf_url.split('/damaged-vehicles/');
