@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as bcrypt from 'npm:bcryptjs@2.4.3';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,7 +11,6 @@ interface CreateUserRequest {
   name: string;
   cpf: string;
   role: 'admin' | 'user';
-  password: string;
   createdBy: string;
 }
 
@@ -29,11 +27,11 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { name, cpf, role, password, createdBy }: CreateUserRequest = await req.json();
+    const { name, cpf, role, createdBy }: CreateUserRequest = await req.json();
 
-    if (!name || !cpf || !password) {
+    if (!name || !cpf) {
       return new Response(
-        JSON.stringify({ error: 'Nome, CPF e senha são obrigatórios' }),
+        JSON.stringify({ error: 'Nome e CPF são obrigatórios' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -58,8 +56,6 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
     const { data: userData, error: userError } = await supabase
       .from('users')
       .insert({
@@ -76,22 +72,6 @@ Deno.serve(async (req: Request) => {
       console.error('Error creating user:', userError);
       return new Response(
         JSON.stringify({ error: 'Erro ao criar usuário' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { error: passwordError } = await supabase
-      .from('user_passwords')
-      .insert({
-        user_id: userData.id,
-        password_hash: hashedPassword,
-      });
-
-    if (passwordError) {
-      await supabase.from('users').delete().eq('id', userData.id);
-      console.error('Error creating password:', passwordError);
-      return new Response(
-        JSON.stringify({ error: 'Erro ao criar senha do usuário' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }

@@ -1,6 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as bcrypt from 'npm:bcryptjs@2.4.3';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,7 +9,6 @@ const corsHeaders = {
 
 interface LoginRequest {
   cpf: string;
-  password: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -26,11 +24,11 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { cpf, password }: LoginRequest = await req.json();
+    const { cpf }: LoginRequest = await req.json();
 
-    if (!cpf || !password) {
+    if (!cpf) {
       return new Response(
-        JSON.stringify({ error: 'CPF e senha são obrigatórios' }),
+        JSON.stringify({ error: 'CPF é obrigatório' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -52,7 +50,7 @@ Deno.serve(async (req: Request) => {
 
     if (userError || !user) {
       return new Response(
-        JSON.stringify({ error: 'CPF ou senha incorretos' }),
+        JSON.stringify({ error: 'CPF não encontrado' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -61,28 +59,6 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({ error: 'Usuário inativo. Contate o administrador.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const { data: passwordData, error: passwordError } = await supabase
-      .from('user_passwords')
-      .select('password_hash')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (passwordError || !passwordData) {
-      return new Response(
-        JSON.stringify({ error: 'CPF ou senha incorretos' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, passwordData.password_hash);
-
-    if (!isPasswordValid) {
-      return new Response(
-        JSON.stringify({ error: 'CPF ou senha incorretos' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 

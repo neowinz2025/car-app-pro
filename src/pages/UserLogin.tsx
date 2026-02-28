@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 export default function UserLogin() {
   const navigate = useNavigate();
   const [cpf, setCpf] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const formatCPF = (value: string) => {
@@ -32,8 +31,8 @@ export default function UserLogin() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!cpf || !password) {
-      toast.error('Preencha CPF e senha');
+    if (!cpf) {
+      toast.error('Preencha o CPF');
       return;
     }
 
@@ -55,7 +54,7 @@ export default function UserLogin() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseAnonKey}`,
         },
-        body: JSON.stringify({ cpf, password }),
+        body: JSON.stringify({ cpf }),
       });
 
       const data = await response.json();
@@ -94,7 +93,7 @@ export default function UserLogin() {
           <div className="text-center">
             <CardTitle className="text-2xl">Login de Usuário</CardTitle>
             <CardDescription>
-              Entre com seu CPF e senha para acessar o sistema
+              Entre com seu CPF para acessar o sistema
             </CardDescription>
           </div>
         </CardHeader>
@@ -112,19 +111,6 @@ export default function UserLogin() {
                 disabled={loading}
                 maxLength={14}
                 autoComplete="username"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Digite sua senha"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-                autoComplete="current-password"
               />
             </div>
 

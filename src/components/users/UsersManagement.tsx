@@ -38,7 +38,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
     name: '',
     cpf: '',
     role: 'user' as 'admin' | 'user',
-    password: '',
   });
 
   useEffect(() => {
@@ -89,11 +88,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       return;
     }
 
-    if (!editingUser && !formData.password.trim()) {
-      toast.error('Digite uma senha');
-      return;
-    }
-
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -110,7 +104,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
             userId: editingUser.id,
             name: formData.name,
             role: formData.role,
-            password: formData.password || undefined,
             adminUsername,
           }),
         });
@@ -133,7 +126,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
             name: formData.name,
             cpf: formData.cpf,
             role: formData.role,
-            password: formData.password,
             createdBy: adminUsername,
           }),
         });
@@ -224,7 +216,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: user.name,
       cpf: user.cpf,
       role: user.role,
-      password: '',
     });
     setIsDialogOpen(true);
   };
@@ -234,7 +225,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: '',
       cpf: '',
       role: 'user',
-      password: '',
     });
     setEditingUser(null);
   };
@@ -270,7 +260,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
               <DialogDescription>
                 {editingUser
                   ? 'Atualize os dados do usuário'
-                  : 'Preencha os dados para criar um novo usuário no sistema'
+                  : 'Preencha os dados para criar um novo usuário. O CPF será usado para login.'
                 }
               </DialogDescription>
             </DialogHeader>
@@ -327,19 +317,6 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                     </SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  {editingUser ? 'Nova Senha (deixe vazio para manter)' : 'Senha'}
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Digite a senha"
-                  value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                />
               </div>
 
               <Button onClick={handleSubmit} className="w-full">
