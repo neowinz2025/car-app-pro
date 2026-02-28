@@ -152,55 +152,55 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
   }, [stopCamera, resetLastPlate]);
 
   return (
-    <div className="flex flex-col h-full px-4 py-4 gap-4">
+    <div className="flex flex-col h-full p-4 gap-4 bg-gradient-to-b from-muted/30 to-background">
       {/* Success Flash Overlay */}
       {showSuccessFlash && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-500/30 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-green-500 text-white px-8 py-6 rounded-3xl shadow-2xl animate-in zoom-in duration-200 flex flex-col items-center gap-3">
-            <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center">
-              <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-24 h-24 rounded-full bg-white/20 flex items-center justify-center">
+              <svg className="w-14 h-14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold">PLACA COLETADA!</p>
-              <p className="text-4xl font-mono font-black mt-2 tracking-wider">{detectedPlateText}</p>
+              <p className="text-3xl font-bold">PLACA COLETADA!</p>
+              <p className="text-5xl font-mono font-black mt-2 tracking-wider">{detectedPlateText}</p>
             </div>
           </div>
         </div>
       )}
 
-      {/* Step Selector */}
+      {/* Step Selector - Maior e mais visível */}
       <div className="flex gap-3">
         <button
           onClick={() => onSetActiveStep(activeStep === 'loja' ? null : 'loja')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold transition-all duration-200 touch-manipulation",
+            "flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-3xl font-bold transition-all duration-200 touch-manipulation shadow-lg",
             activeStep === 'loja'
-              ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
-              : "bg-card text-foreground border border-border"
+              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-500/50 scale-105"
+              : "bg-card text-foreground border-2 border-border active:scale-95"
           )}
         >
-          <Store className="w-5 h-5" />
-          <span>Loja</span>
+          <Store className="w-8 h-8" />
+          <span className="text-lg">LOJA</span>
         </button>
-        
+
         <button
           onClick={() => onSetActiveStep(activeStep === 'lavaJato' ? null : 'lavaJato')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-4 rounded-2xl font-semibold transition-all duration-200 touch-manipulation",
+            "flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-3xl font-bold transition-all duration-200 touch-manipulation shadow-lg",
             activeStep === 'lavaJato'
-              ? "bg-success text-success-foreground shadow-lg shadow-success/30"
-              : "bg-card text-foreground border border-border"
+              ? "bg-gradient-to-br from-green-500 to-green-600 text-white shadow-green-500/50 scale-105"
+              : "bg-card text-foreground border-2 border-border active:scale-95"
           )}
         >
-          <Droplets className="w-5 h-5" />
-          <span>Lava Jato</span>
+          <Droplets className="w-8 h-8" />
+          <span className="text-lg">LAVA JATO</span>
         </button>
       </div>
 
-      {/* Camera Viewfinder */}
-      <div className="relative w-full max-w-2xl mx-auto aspect-[4/3] bg-card rounded-3xl overflow-hidden border border-border">
+      {/* Camera Viewfinder - Maior em mobile */}
+      <div className="relative w-full max-w-2xl mx-auto aspect-[4/3] bg-card rounded-3xl overflow-hidden border-4 border-border shadow-2xl">
         {/* Video Element */}
         <video
           ref={videoRef}
@@ -357,22 +357,27 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         </div>
       </div>
 
-      {/* Manual Input */}
+      {/* Manual Input - Maior e mais fácil de usar */}
       {showManualInput && (
-        <div className="flex gap-2 animate-slide-up">
+        <div className="flex flex-col gap-3 p-4 bg-card rounded-3xl border-2 border-border shadow-lg animate-slide-up">
+          <label className="text-sm font-semibold text-muted-foreground text-center">
+            Digite a placa manualmente
+          </label>
           <Input
-            placeholder="Digite a placa (AAA1A23)"
+            placeholder="AAA1A23"
             value={manualPlate}
             onChange={(e) => setManualPlate(e.target.value.toUpperCase())}
-            className="flex-1 h-12 text-center text-lg font-mono uppercase bg-card rounded-xl"
+            className="h-16 text-center text-2xl font-mono font-bold uppercase bg-muted rounded-2xl border-2"
             maxLength={7}
+            autoFocus
           />
-          <Button 
+          <Button
             onClick={handleManualAdd}
-            className="h-12 px-6 rounded-xl"
+            className="h-14 text-lg font-bold rounded-2xl"
             disabled={manualPlate.length < 7}
+            size="lg"
           >
-            Adicionar
+            Adicionar Placa
           </Button>
         </div>
       )}

@@ -53,24 +53,24 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
   }
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Search */}
-      <div className="sticky top-0 z-10 bg-background px-4 py-3 border-b border-border">
-        <div className="flex gap-2">
+    <div className="flex flex-col h-full bg-gradient-to-b from-muted/30 to-background">
+      {/* Header com busca */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-md px-4 py-4 border-b-2 border-border">
+        <div className="flex gap-3 mb-3">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
             <Input
               placeholder="Buscar placa..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 h-11 rounded-xl bg-card"
+              className="pl-12 h-14 text-lg rounded-2xl bg-card border-2"
             />
             {search && (
               <button
                 onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             )}
           </div>
@@ -78,21 +78,28 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
             variant="outline"
             size="icon"
             onClick={() => setShowHistory(true)}
-            className="h-11 w-11 rounded-xl"
+            className="h-14 w-14 rounded-2xl border-2"
           >
-            <History className="w-5 h-5" />
+            <History className="w-6 h-6" />
           </Button>
+        </div>
+
+        {/* Contador */}
+        <div className="flex items-center justify-between px-2">
+          <p className="text-sm font-semibold text-muted-foreground">
+            {filteredPlates.length} {filteredPlates.length === 1 ? 'placa' : 'placas'}
+          </p>
         </div>
       </div>
 
       {/* List */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide">
         {filteredPlates.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
-              <Search className="w-8 h-8 text-muted-foreground" />
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center mb-4">
+              <Search className="w-10 h-10 text-muted-foreground" />
             </div>
-            <p className="text-muted-foreground">
+            <p className="text-lg font-semibold text-muted-foreground">
               {search ? 'Nenhuma placa encontrada' : 'Nenhuma placa registrada'}
             </p>
           </div>
@@ -100,50 +107,50 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
           filteredPlates.map((plate, index) => (
             <div
               key={plate.id}
-              className="bg-card rounded-2xl p-4 border border-border animate-fade-in"
+              className="bg-card rounded-3xl p-5 border-2 border-border shadow-sm hover:shadow-md transition-shadow animate-fade-in"
               style={{ animationDelay: `${index * 50}ms` }}
             >
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-xl font-bold font-mono tracking-wider">
+              <div className="flex items-center justify-between mb-4">
+                <span className="text-2xl font-bold font-mono tracking-wider">
                   {formatPlate(plate.plate)}
                 </span>
                 <button
                   onClick={() => setPlateToDelete(plate.id)}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg text-destructive hover:bg-destructive/10 transition-colors"
+                  className="w-12 h-12 flex items-center justify-center rounded-2xl text-destructive hover:bg-destructive/10 transition-colors active:scale-95"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
               </div>
-              
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
+
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <span className="text-sm text-muted-foreground font-medium">
                   {formatDistanceToNow(plate.timestamp, { addSuffix: true, locale: ptBR })}
                 </span>
-                
+
                 <div className="flex gap-2">
                   <button
                     onClick={() => onUpdatePlate(plate.id, { loja: !plate.loja })}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                      "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95",
                       plate.loja
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-blue-500 text-white shadow-lg shadow-blue-500/30"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
-                    <Store className="w-3.5 h-3.5" />
+                    <Store className="w-4 h-4" />
                     Loja
                   </button>
-                  
+
                   <button
                     onClick={() => onUpdatePlate(plate.id, { lavaJato: !plate.lavaJato })}
                     className={cn(
-                      "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all",
+                      "flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all active:scale-95",
                       plate.lavaJato
-                        ? "bg-success text-success-foreground"
+                        ? "bg-green-500 text-white shadow-lg shadow-green-500/30"
                         : "bg-muted text-muted-foreground"
                     )}
                   >
-                    <Droplets className="w-3.5 h-3.5" />
+                    <Droplets className="w-4 h-4" />
                     Lava Jato
                   </button>
                 </div>
@@ -155,12 +162,12 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
 
       {/* Clear Button */}
       {plates.length > 0 && (
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t-2 border-border bg-background">
           {showClearConfirm ? (
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               <Button
                 variant="destructive"
-                className="flex-1 h-11 rounded-xl"
+                className="flex-1 h-14 rounded-2xl text-base font-bold"
                 onClick={() => {
                   onClearPlates();
                   setShowClearConfirm(false);
@@ -170,7 +177,7 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
               </Button>
               <Button
                 variant="outline"
-                className="h-11 rounded-xl"
+                className="h-14 rounded-2xl text-base font-bold"
                 onClick={() => setShowClearConfirm(false)}
               >
                 Cancelar
@@ -179,10 +186,10 @@ export function PlatesList({ plates, onUpdatePlate, onRemovePlate, onClearPlates
           ) : (
             <Button
               variant="outline"
-              className="w-full h-11 rounded-xl text-destructive border-destructive/30 hover:bg-destructive/10"
+              className="w-full h-14 rounded-2xl text-base font-bold text-destructive border-2 border-destructive/30 hover:bg-destructive/10"
               onClick={() => setShowClearConfirm(true)}
             >
-              <Trash2 className="w-4 h-4 mr-2" />
+              <Trash2 className="w-5 h-5 mr-2" />
               Limpar todas as placas
             </Button>
           )}

@@ -1,10 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
-import { BottomNav, TabType } from '@/components/layout/BottomNav';
+import { MobileDrawer, TabType } from '@/components/layout/MobileDrawer';
 import { ScannerView } from '@/components/scanner/ScannerView';
 import { PlatesList } from '@/components/plates/PlatesList';
-import { StatsView } from '@/components/stats/StatsView';
 import { ExportView } from '@/components/export/ExportView';
 import { ShiftView } from '@/components/shift/ShiftView';
 import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
@@ -16,6 +15,7 @@ import { toast } from 'sonner';
 const Index = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('scanner');
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const hasShownWelcome = useRef(false);
 
   useEffect(() => {
@@ -77,8 +77,6 @@ const Index = () => {
             onClearPlates={clearPlates}
           />
         );
-      case 'stats':
-        return <StatsView plates={plates} stats={stats} />;
       case 'export':
         return <ExportView plates={plates} onFillStep={fillStep} onClearPlates={clearPlates} />;
       case 'reports':
@@ -94,13 +92,20 @@ const Index = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header plateCount={stats.total} />
-      
-      <main className="flex-1 pb-20">
+      <Header plateCount={stats.total} onMenuClick={() => setIsDrawerOpen(true)} />
+
+      <main className="flex-1">
         {renderContent()}
       </main>
-      
-      <BottomNav activeTab={activeTab} onTabChange={setActiveTab} />
+
+      <MobileDrawer
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        isOpen={isDrawerOpen}
+        onToggle={() => setIsDrawerOpen(!isDrawerOpen)}
+        plateCount={stats.total}
+      />
+
       <InstallPrompt />
     </div>
   );

@@ -163,43 +163,47 @@ export function DamagedVehiclesView() {
   }, {} as Record<string, DamagedVehicle[]>);
 
   return (
-    <div className="flex flex-col h-full px-4 py-4 overflow-y-auto scrollbar-hide">
-      <div className="flex items-center gap-3 mb-4">
-        <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-          <AlertTriangle className="w-5 h-5 text-red-500" />
+    <div className="flex flex-col h-full p-4 overflow-y-auto scrollbar-hide bg-gradient-to-b from-muted/30 to-background">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6 p-4 bg-gradient-to-r from-red-500/10 to-orange-500/10 rounded-3xl border-2 border-red-500/20">
+        <div className="w-14 h-14 rounded-2xl bg-red-500 flex items-center justify-center shadow-lg">
+          <AlertTriangle className="w-7 h-7 text-white" />
         </div>
         <div className="flex-1">
-          <h2 className="text-lg font-bold">Veículos com Avarias</h2>
-          <p className="text-xs text-muted-foreground">Registro de veículos que chegaram com danos</p>
+          <h2 className="text-xl font-bold">Registro de Avarias</h2>
+          <p className="text-sm text-muted-foreground">Veículos com danos</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm" className="rounded-xl">
-              <Plus className="w-4 h-4 mr-2" />
-              Registrar
-            </Button>
-          </DialogTrigger>
+      </div>
+
+      {/* Botão de Adicionar - Grande e destacado */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button size="lg" className="w-full h-16 rounded-3xl text-lg font-bold mb-6 bg-gradient-to-r from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600 shadow-lg">
+            <Plus className="w-6 h-6 mr-2" />
+            REGISTRAR NOVA AVARIA
+          </Button>
+        </DialogTrigger>
           <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Registrar Veículo com Avaria</DialogTitle>
+              <DialogTitle className="text-xl">Nova Avaria</DialogTitle>
               <DialogDescription>
-                Preencha os dados do veículo e adicione fotos das avarias
+                Registre o veículo e adicione fotos dos danos
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="plate">Placa do Veículo</Label>
+            <div className="space-y-5 py-4">
+              <div className="space-y-3">
+                <Label htmlFor="plate" className="text-base font-semibold">Placa do Veículo</Label>
                 <div className="relative">
                   <Input
                     id="plate"
-                    placeholder="Digite ou busque a placa"
+                    placeholder="AAA1A23"
                     value={searchPlate}
                     onChange={(e) => {
                       setSearchPlate(e.target.value.toUpperCase());
                       setSelectedPlate(e.target.value.toUpperCase());
                     }}
-                    className="uppercase"
+                    className="uppercase h-14 text-xl font-bold text-center rounded-2xl border-2"
                   />
                   {showPlateSuggestions && filteredPlates.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
@@ -222,31 +226,33 @@ export function DamagedVehiclesView() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="createdBy">Registrado por</Label>
+              <div className="space-y-3">
+                <Label htmlFor="createdBy" className="text-base font-semibold">Registrado por</Label>
                 <Input
                   id="createdBy"
                   placeholder="Seu nome"
                   value={createdBy}
                   onChange={(e) => setCreatedBy(e.target.value)}
                   disabled
+                  className="h-12 text-base rounded-2xl border-2 bg-muted"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações (opcional)</Label>
+              <div className="space-y-3">
+                <Label htmlFor="notes" className="text-base font-semibold">Observações (opcional)</Label>
                 <Textarea
                   id="notes"
-                  placeholder="Descreva as avarias encontradas..."
+                  placeholder="Descreva os danos encontrados..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  rows={3}
+                  rows={4}
+                  className="text-base rounded-2xl border-2"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label>Fotos das Avarias (mínimo 2)</Label>
-                <div className="border-2 border-dashed rounded-lg p-4 text-center">
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">Fotos das Avarias (mínimo 2)</Label>
+                <div className="border-2 border-dashed rounded-2xl p-6 text-center bg-muted/50">
                   <input
                     type="file"
                     accept="image/*"
@@ -255,14 +261,20 @@ export function DamagedVehiclesView() {
                     className="hidden"
                     id="photo-upload"
                   />
-                  <label htmlFor="photo-upload" className="cursor-pointer">
-                    <Camera className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground">
-                      Clique para adicionar fotos
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {selectedFiles.length}/10 fotos
-                    </p>
+                  <label htmlFor="photo-upload" className="cursor-pointer block">
+                    <div className="flex flex-col items-center gap-3 py-4">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Camera className="w-8 h-8 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-base font-semibold text-foreground">
+                          Adicionar Fotos
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedFiles.length}/10 fotos adicionadas
+                        </p>
+                      </div>
+                    </div>
                   </label>
                 </div>
 
@@ -294,23 +306,24 @@ export function DamagedVehiclesView() {
               <Button
                 onClick={handleSubmit}
                 disabled={loading || selectedFiles.length < 2 || !selectedPlate || !createdBy}
-                className="w-full"
+                className="w-full h-14 text-lg font-bold rounded-2xl"
+                size="lg"
               >
-                {loading ? 'Salvando...' : 'Salvar Registro'}
+                {loading ? 'Salvando...' : 'Salvar Registro de Avaria'}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
-      </div>
 
-      <div className="mb-4">
+      {/* Campo de Busca */}
+      <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
             placeholder="Buscar por placa..."
             value={filterSearchPlate}
             onChange={(e) => setFilterSearchPlate(e.target.value.toUpperCase())}
-            className="pl-9 uppercase"
+            className="pl-12 h-14 text-lg uppercase rounded-2xl border-2"
           />
         </div>
       </div>
