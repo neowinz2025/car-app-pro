@@ -70,26 +70,55 @@ export function usePlates() {
 
     if (normalizedPlate.length < 7) return false;
 
-    const plateExists = plates.some(p => p.plate === normalizedPlate);
-    if (plateExists) {
-      console.log(`Placa ${normalizedPlate} já foi registrada`);
+    // Check if plate already exists in the CURRENT STEP
+    const existsInCurrentStep = plates.some(p => {
+      if (p.plate !== normalizedPlate) return false;
+      if (activeStep === 'loja') return p.loja;
+      if (activeStep === 'lavaJato') return p.lavaJato;
+      return false;
+    });
+
+    if (existsInCurrentStep) {
+      console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep}`);
       return false;
     }
 
     const timestamp = new Date();
-    const newPlate: PlateRecord = {
-      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      plate: normalizedPlate,
-      timestamp,
-      loja: activeStep === 'loja',
-      lavaJato: activeStep === 'lavaJato',
-    };
 
-    setPlates(prev => {
-      const updated = [newPlate, ...prev];
-      savePlates(updated);
-      return updated;
-    });
+    // Check if plate exists but in different step - update it
+    const existingPlate = plates.find(p => p.plate === normalizedPlate);
+
+    if (existingPlate) {
+      // Update existing plate with new step
+      const updates: Partial<PlateRecord> = {
+        timestamp,
+        ...(activeStep === 'loja' ? { loja: true } : {}),
+        ...(activeStep === 'lavaJato' ? { lavaJato: true } : {}),
+      };
+
+      setPlates(prev => {
+        const updated = prev.map(p =>
+          p.plate === normalizedPlate ? { ...p, ...updates } : p
+        );
+        savePlates(updated);
+        return updated;
+      });
+    } else {
+      // Add new plate
+      const newPlate: PlateRecord = {
+        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        plate: normalizedPlate,
+        timestamp,
+        loja: activeStep === 'loja',
+        lavaJato: activeStep === 'lavaJato',
+      };
+
+      setPlates(prev => {
+        const updated = [newPlate, ...prev];
+        savePlates(updated);
+        return updated;
+      });
+    }
 
     try {
       const { error } = await supabase
