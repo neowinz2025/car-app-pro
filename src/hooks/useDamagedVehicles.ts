@@ -168,28 +168,53 @@ export function useDamagedVehicles() {
     try {
       setLoading(true);
 
+      const { data: vehicle } = await supabase
+        .from('damaged_vehicles')
+        .select('pdf_url')
+        .eq('id', vehicleId)
+        .single();
+
       const { data: photos } = await supabase
         .from('damaged_vehicle_photos')
         .select('photo_url')
         .eq('damaged_vehicle_id', vehicleId);
 
+      const filesToDelete: string[] = [];
+
       if (photos && photos.length > 0) {
         for (const photo of photos) {
-          const path = photo.photo_url.split('/damaged-vehicles/')[1];
-          if (path) {
-            await supabase.storage
-              .from('damaged-vehicles')
-              .remove([path]);
+          const urlParts = photo.photo_url.split('/damaged-vehicles/');
+          if (urlParts.length > 1) {
+            const path = decodeURIComponent(urlParts[1]);
+            filesToDelete.push(path);
           }
         }
       }
 
-      const { error } = await supabase
+      if (vehicle?.pdf_url) {
+        const urlParts = vehicle.pdf_url.split('/damaged-vehicles/');
+        if (urlParts.length > 1) {
+          const path = decodeURIComponent(urlParts[1]);
+          filesToDelete.push(path);
+        }
+      }
+
+      if (filesToDelete.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from('damaged-vehicles')
+          .remove(filesToDelete);
+
+        if (storageError) {
+          console.warn('Error deleting storage files:', storageError);
+        }
+      }
+
+      const { error: deleteError } = await supabase
         .from('damaged_vehicles')
         .delete()
         .eq('id', vehicleId);
 
-      if (error) throw error;
+      if (deleteError) throw deleteError;
 
       toast.success('Veículo removido com sucesso!');
       return true;

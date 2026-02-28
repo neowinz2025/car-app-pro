@@ -205,7 +205,7 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       </div>
 
       {/* Camera Viewfinder */}
-      <div className="relative flex-1 min-h-[300px] bg-card rounded-3xl overflow-hidden border border-border">
+      <div className="relative w-full max-w-2xl mx-auto aspect-[4/3] bg-card rounded-3xl overflow-hidden border border-border">
         {/* Video Element */}
         <video
           ref={videoRef}
