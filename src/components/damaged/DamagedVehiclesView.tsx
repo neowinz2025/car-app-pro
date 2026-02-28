@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { AlertTriangle, Plus, Search, Trash2, Camera, X } from 'lucide-react';
+import { AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -392,6 +392,28 @@ export function DamagedVehiclesView() {
                   <div className="mb-3 p-3 bg-muted/50 rounded-lg">
                     <div className="text-xs font-semibold mb-1">Observações:</div>
                     <div className="text-xs text-muted-foreground">{vehicle.notes}</div>
+                  </div>
+                )}
+
+                {vehicle.pdf_url && (
+                  <div className="mb-3">
+                    <a
+                      href={vehicle.pdf_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900 transition-colors"
+                    >
+                      <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                          Relatório PDF Completo
+                        </div>
+                        <div className="text-xs text-blue-700 dark:text-blue-300">
+                          Clique para visualizar ou baixar
+                        </div>
+                      </div>
+                      <Download className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </a>
                   </div>
                 )}
 

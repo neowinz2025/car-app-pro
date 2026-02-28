@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, LogOut, FileText, Database, Trash2, Eye, Calendar, User, ClipboardList, Users, AlertTriangle } from 'lucide-react';
+import { Shield, LogOut, FileText, Database, Trash2, Eye, Calendar, User, ClipboardList, Users, AlertTriangle, Key } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { UsersManagement } from '@/components/users/UsersManagement';
+import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -252,7 +253,7 @@ export default function AdminDashboard() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="reports" className="w-full">
-          <TabsList className="grid w-full max-w-6xl mx-auto grid-cols-6 mb-8">
+          <TabsList className="grid w-full max-w-6xl mx-auto grid-cols-7 mb-8">
             <TabsTrigger value="reports">
               <FileText className="w-4 h-4 mr-2" />
               Relatórios
@@ -276,6 +277,10 @@ export default function AdminDashboard() {
             <TabsTrigger value="users">
               <User className="w-4 h-4 mr-2" />
               Usuários
+            </TabsTrigger>
+            <TabsTrigger value="api-keys">
+              <Key className="w-4 h-4 mr-2" />
+              API Keys
             </TabsTrigger>
           </TabsList>
 
@@ -707,6 +712,20 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <UsersManagement adminUsername={adminUsername || 'admin'} />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="api-keys">
+            <Card className="max-w-4xl mx-auto">
+              <CardHeader>
+                <CardTitle>Chaves API - Plate Recognizer</CardTitle>
+                <CardDescription>
+                  Sistema de rotação automática de chaves API
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ApiKeysManagement />
               </CardContent>
             </Card>
           </TabsContent>

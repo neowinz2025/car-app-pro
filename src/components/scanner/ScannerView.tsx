@@ -221,26 +221,31 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         {/* Overlay when camera is active */}
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
-            {/* Scanning frame */}
-            <div className="absolute inset-8 border-2 border-primary/50 rounded-lg">
+            {/* Top instruction */}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full">
+              <span className="text-white text-sm font-medium">Aponte para a placa do veículo</span>
+            </div>
+
+            {/* Scanning frame - Plate-shaped rectangle */}
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-28 border-2 border-primary/50 rounded-lg">
               {/* Corner markers */}
               <div className="absolute top-0 left-0 w-6 h-6 border-t-4 border-l-4 border-primary rounded-tl-lg" />
               <div className="absolute top-0 right-0 w-6 h-6 border-t-4 border-r-4 border-primary rounded-tr-lg" />
               <div className="absolute bottom-0 left-0 w-6 h-6 border-b-4 border-l-4 border-primary rounded-bl-lg" />
               <div className="absolute bottom-0 right-0 w-6 h-6 border-b-4 border-r-4 border-primary rounded-br-lg" />
-              
+
               {/* Scan line animation */}
               <div className={cn(
                 "absolute top-0 left-0 right-0 h-0.5 bg-primary animate-scan-line",
                 isProcessing && "bg-warning"
               )} />
             </div>
-            
+
             {/* Processing indicator */}
             {isProcessing && (
-              <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-card/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                <span className="text-sm font-medium">Analisando...</span>
+              <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-warning/90 backdrop-blur-sm px-4 py-2 rounded-full flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                <span className="text-sm font-medium text-white">Reconhecendo placa...</span>
               </div>
             )}
           </div>
@@ -289,21 +294,28 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
             )}
           </Button>
 
-          <Button
-            onClick={handleScanToggle}
-            className={cn(
-              "w-16 h-16 rounded-full transition-all duration-200",
-              isActive 
-                ? "bg-destructive hover:bg-destructive/90" 
-                : "bg-primary hover:bg-primary/90"
+          <div className="flex flex-col items-center gap-2">
+            <Button
+              onClick={handleScanToggle}
+              className={cn(
+                "w-16 h-16 rounded-full transition-all duration-200",
+                isActive
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : "bg-primary hover:bg-primary/90"
+              )}
+            >
+              {isActive ? (
+                <X className="w-7 h-7" />
+              ) : (
+                <Camera className="w-7 h-7" />
+              )}
+            </Button>
+            {!isActive && (
+              <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
+                Iniciar
+              </span>
             )}
-          >
-            {isActive ? (
-              <X className="w-7 h-7" />
-            ) : (
-              <Camera className="w-7 h-7" />
-            )}
-          </Button>
+          </div>
 
           <Button
             variant="secondary"

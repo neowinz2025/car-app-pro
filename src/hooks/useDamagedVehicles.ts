@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { generateDamagePDF } from '@/lib/damagePdfGenerator';
 
 export interface DamagedVehiclePhoto {
   id: string;
@@ -17,6 +18,8 @@ export interface DamagedVehicle {
   created_by: string;
   notes: string;
   photos: DamagedVehiclePhoto[];
+  pdf_url?: string;
+  pdf_generated_at?: string;
 }
 
 export function useDamagedVehicles() {
@@ -80,6 +83,8 @@ export function useDamagedVehicles() {
 
       if (vehicleError) throw vehicleError;
 
+      const photoUrls: DamagedVehiclePhoto[] = [];
+
       for (let i = 0; i < photos.length; i++) {
         const file = photos[i];
         const fileExt = file.name.split('.').pop();
@@ -95,18 +100,60 @@ export function useDamagedVehicles() {
           .from('damaged-vehicles')
           .getPublicUrl(fileName);
 
-        const { error: photoError } = await supabase
+        const { data: photoData, error: photoError } = await supabase
           .from('damaged_vehicle_photos')
           .insert({
             damaged_vehicle_id: vehicle.id,
             photo_url: publicUrl,
             photo_order: i,
-          });
+          })
+          .select()
+          .single();
 
         if (photoError) throw photoError;
+        if (photoData) {
+          photoUrls.push(photoData);
+        }
       }
 
-      toast.success('Veículo registrado com sucesso!');
+      toast.success('Gerando relatório PDF...', { duration: 2000 });
+
+      try {
+        const pdfBlob = await generateDamagePDF({
+          plate: vehicle.plate,
+          created_by: vehicle.created_by,
+          created_at: vehicle.created_at,
+          notes: vehicle.notes || '',
+          photos: photoUrls,
+        });
+
+        const pdfFileName = `${vehicle.id}/relatorio_${Date.now()}.pdf`;
+        const { error: pdfUploadError } = await supabase.storage
+          .from('damaged-vehicles')
+          .upload(pdfFileName, pdfBlob, {
+            contentType: 'application/pdf',
+          });
+
+        if (pdfUploadError) throw pdfUploadError;
+
+        const { data: { publicUrl: pdfUrl } } = supabase.storage
+          .from('damaged-vehicles')
+          .getPublicUrl(pdfFileName);
+
+        await supabase
+          .from('damaged_vehicles')
+          .update({
+            pdf_url: pdfUrl,
+            pdf_generated_at: new Date().toISOString(),
+          })
+          .eq('id', vehicle.id);
+
+        toast.success('Veículo registrado e PDF gerado com sucesso!');
+      } catch (pdfError) {
+        console.error('Error generating PDF:', pdfError);
+        toast.warning('Veículo registrado, mas houve erro ao gerar o PDF');
+      }
+
       return true;
     } catch (error) {
       console.error('Error creating damaged vehicle:', error);
