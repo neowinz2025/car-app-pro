@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -26,6 +26,7 @@ export function DamagedVehiclesView() {
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [availablePlates, setAvailablePlates] = useState<string[]>([]);
   const [showPlateSuggestions, setShowPlateSuggestions] = useState(false);
+  const autocompleteRef = useRef<HTMLDivElement>(null);
 
   const { loading, getAllDamagedVehicles, createDamagedVehicle, deleteDamagedVehicle } = useDamagedVehicles();
   const { plates } = usePlates();
@@ -67,6 +68,19 @@ export function DamagedVehiclesView() {
       setFilteredVehicles(vehicles);
     }
   }, [filterSearchPlate, vehicles]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (autocompleteRef.current && !autocompleteRef.current.contains(event.target as Node)) {
+        setShowPlateSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const loadVehicles = async () => {
     const data = await getAllDamagedVehicles();
@@ -194,15 +208,21 @@ export function DamagedVehiclesView() {
             <div className="space-y-5 py-4">
               <div className="space-y-3">
                 <Label htmlFor="plate" className="text-base font-semibold">Placa do Veículo</Label>
-                <div className="relative">
+                <div className="relative" ref={autocompleteRef}>
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground z-10" />
                   <Input
                     id="plate"
                     placeholder="AAA1A23 - Buscar ou digitar"
                     value={searchPlate}
                     onChange={(e) => {
-                      setSearchPlate(e.target.value.toUpperCase());
-                      setSelectedPlate(e.target.value.toUpperCase());
+                      const value = e.target.value.toUpperCase();
+                      setSearchPlate(value);
+                      setSelectedPlate(value);
+                    }}
+                    onFocus={() => {
+                      if (searchPlate.length >= 3) {
+                        setShowPlateSuggestions(true);
+                      }
                     }}
                     className="uppercase h-14 text-lg font-bold pl-12 rounded-2xl border-2"
                   />
