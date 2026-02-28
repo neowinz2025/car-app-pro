@@ -12,6 +12,7 @@ import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { UsersManagement } from '@/components/users/UsersManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
+import { cn } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
