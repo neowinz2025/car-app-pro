@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download } from 'lucide-react';
+import { AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { useDamagedVehicles, DamagedVehicle } from '@/hooks/useDamagedVehicles';
+import { useDamagedVehicles, DamagedVehicle, PhotoMetadata } from '@/hooks/useDamagedVehicles';
 import { usePlates } from '@/hooks/usePlates';
 import { usePlateCache } from '@/hooks/usePlateCache';
 import { format } from 'date-fns';
@@ -23,7 +23,7 @@ export function DamagedVehiclesView() {
   const [filterSearchPlate, setFilterSearchPlate] = useState('');
   const [createdBy, setCreatedBy] = useState('');
   const [notes, setNotes] = useState('');
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<PhotoMetadata[]>([]);
   const [previewUrls, setPreviewUrls] = useState<string[]>([]);
   const [availablePlates, setAvailablePlates] = useState<string[]>([]);
   const [showPlateSuggestions, setShowPlateSuggestions] = useState(false);
@@ -100,7 +100,7 @@ export function DamagedVehiclesView() {
     setVehicles(data);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
 
     if (selectedFiles.length + files.length > 10) {
@@ -108,7 +108,36 @@ export function DamagedVehiclesView() {
       return;
     }
 
-    setSelectedFiles(prev => [...prev, ...files]);
+    const photosWithMetadata: PhotoMetadata[] = await Promise.all(
+      files.map(async (file) => {
+        const metadata: PhotoMetadata = {
+          file,
+          timestamp: new Date(),
+        };
+
+        try {
+          if ('geolocation' in navigator) {
+            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+              navigator.geolocation.getCurrentPosition(resolve, reject, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0,
+              });
+            });
+
+            metadata.latitude = position.coords.latitude;
+            metadata.longitude = position.coords.longitude;
+            metadata.accuracy = position.coords.accuracy;
+          }
+        } catch (error) {
+          console.log('Location not available for photo:', error);
+        }
+
+        return metadata;
+      })
+    );
+
+    setSelectedFiles(prev => [...prev, ...photosWithMetadata]);
 
     files.forEach(file => {
       const reader = new FileReader();
@@ -475,24 +504,60 @@ export function DamagedVehiclesView() {
                     <div className="text-xs font-semibold mb-2">
                       Fotos ({vehicle.photos.length})
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-1 gap-3">
                       {vehicle.photos.map((photo, index) => (
-                        <a
-                          key={photo.id}
-                          href={photo.photo_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="relative group cursor-pointer"
-                        >
-                          <img
-                            src={photo.photo_url}
-                            alt={`Avaria ${index + 1}`}
-                            className="w-full h-32 object-cover rounded-lg border border-border hover:border-primary transition-colors"
-                          />
-                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                            <Camera className="w-6 h-6 text-white" />
+                        <div key={photo.id} className="border border-border rounded-lg overflow-hidden">
+                          <a
+                            href={photo.photo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative group cursor-pointer block"
+                          >
+                            <img
+                              src={photo.photo_url}
+                              alt={`Avaria ${index + 1}`}
+                              className="w-full h-48 object-cover hover:opacity-90 transition-opacity"
+                            />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Camera className="w-8 h-8 text-white" />
+                            </div>
+                            <div className="absolute top-2 left-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                              Foto {index + 1}
+                            </div>
+                          </a>
+
+                          <div className="p-3 bg-muted/30 space-y-2">
+                            {photo.photo_timestamp && (
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>
+                                  {format(new Date(photo.photo_timestamp), "dd/MM/yyyy 'às' HH:mm:ss", { locale: ptBR })}
+                                </span>
+                              </div>
+                            )}
+
+                            {photo.photo_latitude && photo.photo_longitude && (
+                              <div className="flex items-start gap-2 text-xs">
+                                <MapPin className="w-3.5 h-3.5 mt-0.5 text-blue-500 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <a
+                                    href={`https://www.google.com/maps?q=${photo.photo_latitude},${photo.photo_longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-blue-500 hover:underline"
+                                  >
+                                    {photo.photo_latitude.toFixed(6)}, {photo.photo_longitude.toFixed(6)}
+                                  </a>
+                                  {photo.photo_location_accuracy && (
+                                    <span className="text-muted-foreground ml-1">
+                                      (±{photo.photo_location_accuracy.toFixed(0)}m)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </a>
+                        </div>
                       ))}
                     </div>
                   </div>

@@ -3,12 +3,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { generateDamagePDF } from '@/lib/damagePdfGenerator';
 
+export interface PhotoMetadata {
+  file: File;
+  timestamp: Date;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+}
+
 export interface DamagedVehiclePhoto {
   id: string;
   damaged_vehicle_id: string;
   photo_url: string;
   photo_order: number;
   created_at: string;
+  photo_timestamp?: string;
+  photo_latitude?: number;
+  photo_longitude?: number;
+  photo_location_accuracy?: number;
 }
 
 export interface DamagedVehicle {
@@ -66,7 +78,7 @@ export function useDamagedVehicles() {
     plate: string,
     createdBy: string,
     notes: string,
-    photos: File[]
+    photos: PhotoMetadata[]
   ): Promise<boolean> => {
     try {
       setLoading(true);
@@ -86,7 +98,8 @@ export function useDamagedVehicles() {
       const photoUrls: DamagedVehiclePhoto[] = [];
 
       for (let i = 0; i < photos.length; i++) {
-        const file = photos[i];
+        const photoMeta = photos[i];
+        const file = photoMeta.file;
         const fileExt = file.name.split('.').pop();
         const fileName = `${vehicle.id}/${Date.now()}_${i}.${fileExt}`;
 
@@ -106,6 +119,10 @@ export function useDamagedVehicles() {
             damaged_vehicle_id: vehicle.id,
             photo_url: publicUrl,
             photo_order: i,
+            photo_timestamp: photoMeta.timestamp.toISOString(),
+            photo_latitude: photoMeta.latitude,
+            photo_longitude: photoMeta.longitude,
+            photo_location_accuracy: photoMeta.accuracy,
           })
           .select()
           .single();
