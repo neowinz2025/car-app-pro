@@ -217,9 +217,9 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
             {/* Top instruction */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-full">
-              <span className="text-white text-sm font-medium">
-                {isProcessing ? 'Reconhecendo placa...' : 'Centralize a placa e clique em Capturar'}
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm px-5 py-3 rounded-2xl border-2 border-green-400 shadow-xl">
+              <span className="text-white text-base font-bold">
+                {isProcessing ? '⏳ Analisando placa...' : '📸 Centralize e clique em CAPTURAR'}
               </span>
             </div>
 
@@ -282,77 +282,77 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         )}
 
         {/* Scan controls overlay */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-4">
+          {/* Flashlight button */}
           <Button
             variant="secondary"
             size="icon"
             onClick={handleFlashlightToggle}
             disabled={!isActive}
-            className="w-12 h-12 rounded-full bg-card/90 backdrop-blur-sm"
+            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm border-2 border-white/20 hover:bg-black/80 transition-all"
           >
             {flashlightOn ? (
-              <Flashlight className="w-5 h-5 text-warning" />
+              <Flashlight className="w-6 h-6 text-yellow-400" />
             ) : (
-              <FlashlightOff className="w-5 h-5" />
+              <FlashlightOff className="w-6 h-6 text-white" />
             )}
           </Button>
 
-          <div className="flex items-center gap-3">
-            {/* Camera toggle button */}
-            <div className="flex flex-col items-center gap-2">
-              <Button
-                onClick={handleScanToggle}
-                className={cn(
-                  "w-16 h-16 rounded-full transition-all duration-200",
-                  isActive
-                    ? "bg-destructive hover:bg-destructive/90"
-                    : "bg-primary hover:bg-primary/90"
-                )}
-              >
-                {isActive ? (
-                  <X className="w-7 h-7" />
-                ) : (
-                  <Camera className="w-7 h-7" />
-                )}
-              </Button>
-              {!isActive && (
-                <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
-                  Iniciar
-                </span>
+          {/* Camera toggle button */}
+          <div className="flex flex-col items-center gap-1">
+            <Button
+              onClick={handleScanToggle}
+              className={cn(
+                "w-20 h-20 rounded-full transition-all duration-200 shadow-2xl",
+                isActive
+                  ? "bg-red-500 hover:bg-red-600 border-4 border-red-300"
+                  : "bg-blue-500 hover:bg-blue-600 border-4 border-blue-300"
               )}
-            </div>
-
-            {/* Capture button - only visible when camera is active */}
-            {isActive && (
-              <div className="flex flex-col items-center gap-2">
-                <Button
-                  onClick={handleCapturePlate}
-                  disabled={isProcessing}
-                  className={cn(
-                    "w-16 h-16 rounded-full transition-all duration-200",
-                    "bg-success hover:bg-success/90 shadow-lg shadow-success/30"
-                  )}
-                >
-                  {isProcessing ? (
-                    <Loader2 className="w-7 h-7 animate-spin" />
-                  ) : (
-                    <ScanLine className="w-7 h-7" />
-                  )}
-                </Button>
-                <span className="text-xs text-white bg-black/50 px-2 py-1 rounded-full">
-                  Capturar
-                </span>
-              </div>
-            )}
+            >
+              {isActive ? (
+                <X className="w-9 h-9" />
+              ) : (
+                <Camera className="w-9 h-9" />
+              )}
+            </Button>
+            <span className="text-xs font-semibold text-white bg-black/70 px-3 py-1 rounded-full">
+              {isActive ? 'Fechar' : 'Câmera'}
+            </span>
           </div>
 
+          {/* Capture button - ALWAYS visible when camera is active */}
+          {isActive && (
+            <div className="flex flex-col items-center gap-1">
+              <Button
+                onClick={handleCapturePlate}
+                disabled={isProcessing}
+                className={cn(
+                  "w-20 h-20 rounded-full transition-all duration-200 shadow-2xl",
+                  isProcessing
+                    ? "bg-yellow-500 border-4 border-yellow-300"
+                    : "bg-green-500 hover:bg-green-600 border-4 border-green-300 animate-pulse"
+                )}
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-9 h-9 animate-spin" />
+                ) : (
+                  <Camera className="w-9 h-9" />
+                )}
+              </Button>
+              <span className="text-xs font-bold text-white bg-green-600 px-3 py-1 rounded-full shadow-lg">
+                {isProcessing ? 'Analisando...' : 'CAPTURAR'}
+              </span>
+            </div>
+          )}
+
+          {/* Manual input button */}
           <Button
             variant="secondary"
             size="icon"
             onClick={() => setShowManualInput(!showManualInput)}
-            className="w-12 h-12 rounded-full bg-card/90 backdrop-blur-sm"
+            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm border-2 border-white/20 hover:bg-black/80 transition-all"
           >
-            <Plus className="w-5 h-5" />
+            <Plus className="w-6 h-6 text-white" />
           </Button>
         </div>
       </div>
@@ -378,25 +378,21 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
       )}
 
       {/* Status */}
-      <div className="flex flex-col items-center justify-center gap-2 py-2">
-        <div className="flex items-center gap-2">
-          <div className={cn(
-            "w-2 h-2 rounded-full",
-            isActive && isProcessing ? "bg-warning animate-pulse" :
-            isActive ? "bg-success animate-pulse" : "bg-muted-foreground"
-          )} />
-          <span className="text-sm text-muted-foreground">
-            {isActive && isProcessing ? 'Reconhecendo placa...' :
-             isActive ? 'Câmera pronta - clique em Capturar' :
-             error ? 'Erro na câmera' : 'Aguardando'}
-          </span>
-        </div>
+      <div className="flex flex-col items-center justify-center gap-3 py-3">
+        {isActive && (
+          <div className="flex items-center gap-3 px-6 py-3 bg-green-500/20 border-2 border-green-500 rounded-2xl">
+            <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-base font-bold text-green-700">
+              {isProcessing ? '⏳ Analisando placa...' : '✓ Pronta para capturar'}
+            </span>
+          </div>
+        )}
 
         {/* Cache Status */}
         {cacheSize > 0 && (
-          <div className="flex items-center gap-2 px-3 py-1 bg-primary/10 rounded-full">
-            <Database className="w-3 h-3 text-primary" />
-            <span className="text-xs text-primary font-medium">
+          <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-xl border border-primary/20">
+            <Database className="w-4 h-4 text-primary" />
+            <span className="text-sm text-primary font-semibold">
               {cacheSize} placas em cache local
             </span>
           </div>
