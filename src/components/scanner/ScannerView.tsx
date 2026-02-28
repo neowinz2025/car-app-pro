@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2, Database, ScanLine } from 'lucide-react';
+import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircle, Loader2, Database, ScanLine, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -8,11 +8,18 @@ import { toast } from 'sonner';
 import { useCamera } from '@/hooks/useCamera';
 import { usePlateRecognition } from '@/hooks/usePlateRecognition';
 import { usePlateCache } from '@/hooks/usePlateCache';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ScannerViewProps {
   activeStep: ActiveStep;
   onSetActiveStep: (step: ActiveStep) => void;
   onAddPlate: (plate: string) => Promise<boolean>;
+}
+
+interface PlateSuggestion {
+  plate: string;
+  last_seen: string;
+  count: number;
 }
 
 export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: ScannerViewProps) {
@@ -21,6 +28,9 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
   const [showManualInput, setShowManualInput] = useState(false);
   const [showSuccessFlash, setShowSuccessFlash] = useState(false);
   const [detectedPlateText, setDetectedPlateText] = useState('');
+  const [suggestions, setSuggestions] = useState<PlateSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
 
   const {
     videoRef,
@@ -115,6 +125,69 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     }
   };
 
+  const searchPlates = useCallback(async (searchTerm: string) => {
+    if (searchTerm.length < 2) {
+      setSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from('plate_records')
+        .select('plate, created_at')
+        .ilike('plate', `%${searchTerm}%`)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (data) {
+        // Group by plate and count occurrences
+        const plateMap = new Map<string, PlateSuggestion>();
+        data.forEach((record) => {
+          const existing = plateMap.get(record.plate);
+          if (existing) {
+            existing.count += 1;
+            if (record.created_at > existing.last_seen) {
+              existing.last_seen = record.created_at;
+            }
+          } else {
+            plateMap.set(record.plate, {
+              plate: record.plate,
+              last_seen: record.created_at,
+              count: 1,
+            });
+          }
+        });
+
+        const uniquePlates = Array.from(plateMap.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 5);
+
+        setSuggestions(uniquePlates);
+        setShowSuggestions(uniquePlates.length > 0);
+      }
+    } catch (error) {
+      console.error('Error searching plates:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  const handleManualPlateChange = (value: string) => {
+    const upperValue = value.toUpperCase();
+    setManualPlate(upperValue);
+    searchPlates(upperValue);
+  };
+
+  const selectSuggestion = (plate: string) => {
+    setManualPlate(plate);
+    setShowSuggestions(false);
+    setSuggestions([]);
+  };
+
   const handleManualAdd = async () => {
     if (manualPlate.trim()) {
       const success = await onAddPlate(manualPlate.trim());
@@ -135,6 +208,8 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         });
         setManualPlate('');
         setShowManualInput(false);
+        setSuggestions([]);
+        setShowSuggestions(false);
       } else {
         toast.error('Placa inválida', {
           description: 'Digite uma placa válida com 7 caracteres',
@@ -170,32 +245,32 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         </div>
       )}
 
-      {/* Step Selector - Maior e mais visível */}
-      <div className="flex gap-3">
+      {/* Step Selector - Compacto */}
+      <div className="flex gap-2">
         <button
           onClick={() => onSetActiveStep(activeStep === 'loja' ? null : 'loja')}
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-3xl font-bold transition-all duration-200 touch-manipulation shadow-lg",
+            "flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold transition-all duration-200 touch-manipulation",
             activeStep === 'loja'
-              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-blue-500/50 scale-105"
+              ? "bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md"
               : "bg-card text-foreground border-2 border-border active:scale-95"
           )}
         >
-          <Store className="w-8 h-8" />
-          <span className="text-lg">LOJA</span>
+          <Store className="w-5 h-5" />
+          <span className="text-base">LOJA</span>
         </button>
 
         <button
           onClick={() => onSetActiveStep(activeStep === 'lavaJato' ? null : 'lavaJato')}
           className={cn(
-            "flex-1 flex flex-col items-center justify-center gap-2 py-6 rounded-3xl font-bold transition-all duration-200 touch-manipulation shadow-lg",
+            "flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl font-semibold transition-all duration-200 touch-manipulation",
             activeStep === 'lavaJato'
-              ? "bg-gradient-to-br from-green-500 to-green-600 text-white shadow-green-500/50 scale-105"
+              ? "bg-gradient-to-br from-green-500 to-green-600 text-white shadow-md"
               : "bg-card text-foreground border-2 border-border active:scale-95"
           )}
         >
-          <Droplets className="w-8 h-8" />
-          <span className="text-lg">LAVA JATO</span>
+          <Droplets className="w-5 h-5" />
+          <span className="text-base">LAVA JATO</span>
         </button>
       </div>
 
@@ -216,11 +291,55 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
         {/* Overlay when camera is active */}
         {isActive && (
           <div className="absolute inset-0 pointer-events-none">
-            {/* Top instruction */}
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 backdrop-blur-sm px-5 py-3 rounded-2xl border-2 border-green-400 shadow-xl">
-              <span className="text-white text-base font-bold">
-                {isProcessing ? '⏳ Analisando placa...' : '📸 Centralize e clique em CAPTURAR'}
-              </span>
+            {/* Top controls - MOVED HERE */}
+            <div className="absolute top-3 left-0 right-0 flex items-center justify-between px-4 pointer-events-auto z-20">
+              {/* Flashlight */}
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={handleFlashlightToggle}
+                className="w-12 h-12 rounded-full bg-black/70 backdrop-blur-sm border-2 border-white/30 hover:bg-black/90"
+              >
+                {flashlightOn ? (
+                  <Flashlight className="w-5 h-5 text-yellow-400" />
+                ) : (
+                  <FlashlightOff className="w-5 h-5 text-white" />
+                )}
+              </Button>
+
+              {/* Capture button */}
+              <Button
+                onClick={handleCapturePlate}
+                disabled={isProcessing}
+                className={cn(
+                  "h-12 px-6 rounded-full font-bold text-base shadow-xl",
+                  isProcessing
+                    ? "bg-yellow-500 border-2 border-yellow-300"
+                    : "bg-green-500 hover:bg-green-600 border-2 border-green-300"
+                )}
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-5 h-5 mr-2" />
+                    CAPTURAR
+                  </>
+                )}
+              </Button>
+
+              {/* Close button */}
+              <Button
+                onClick={handleScanToggle}
+                variant="secondary"
+                size="icon"
+                className="w-12 h-12 rounded-full bg-red-500/90 backdrop-blur-sm border-2 border-white/30 hover:bg-red-600"
+              >
+                <X className="w-6 h-6 text-white" />
+              </Button>
             </div>
 
             {/* Scanning frame - Plate-shaped rectangle */}
@@ -281,96 +400,92 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
           </div>
         )}
 
-        {/* Scan controls overlay */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-center gap-4">
-          {/* Flashlight button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={handleFlashlightToggle}
-            disabled={!isActive}
-            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm border-2 border-white/20 hover:bg-black/80 transition-all"
-          >
-            {flashlightOn ? (
-              <Flashlight className="w-6 h-6 text-yellow-400" />
-            ) : (
-              <FlashlightOff className="w-6 h-6 text-white" />
-            )}
-          </Button>
-
-          {/* Camera toggle button */}
-          <div className="flex flex-col items-center gap-1">
+        {/* Camera toggle button - BOTTOM CENTER when camera is OFF */}
+        {!isActive && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2">
             <Button
               onClick={handleScanToggle}
-              className={cn(
-                "w-20 h-20 rounded-full transition-all duration-200 shadow-2xl",
-                isActive
-                  ? "bg-red-500 hover:bg-red-600 border-4 border-red-300"
-                  : "bg-blue-500 hover:bg-blue-600 border-4 border-blue-300"
-              )}
+              className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 border-4 border-blue-300 shadow-2xl"
             >
-              {isActive ? (
-                <X className="w-9 h-9" />
-              ) : (
-                <Camera className="w-9 h-9" />
-              )}
+              <Camera className="w-10 h-10" />
             </Button>
-            <span className="text-xs font-semibold text-white bg-black/70 px-3 py-1 rounded-full">
-              {isActive ? 'Fechar' : 'Câmera'}
+            <span className="text-sm font-bold text-foreground bg-card px-4 py-1.5 rounded-full shadow-lg border-2 border-border">
+              Iniciar Câmera
             </span>
           </div>
-
-          {/* Capture button - ALWAYS visible when camera is active */}
-          {isActive && (
-            <div className="flex flex-col items-center gap-1">
-              <Button
-                onClick={handleCapturePlate}
-                disabled={isProcessing}
-                className={cn(
-                  "w-20 h-20 rounded-full transition-all duration-200 shadow-2xl",
-                  isProcessing
-                    ? "bg-yellow-500 border-4 border-yellow-300"
-                    : "bg-green-500 hover:bg-green-600 border-4 border-green-300 animate-pulse"
-                )}
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-9 h-9 animate-spin" />
-                ) : (
-                  <Camera className="w-9 h-9" />
-                )}
-              </Button>
-              <span className="text-xs font-bold text-white bg-green-600 px-3 py-1 rounded-full shadow-lg">
-                {isProcessing ? 'Analisando...' : 'CAPTURAR'}
-              </span>
-            </div>
-          )}
-
-          {/* Manual input button */}
-          <Button
-            variant="secondary"
-            size="icon"
-            onClick={() => setShowManualInput(!showManualInput)}
-            className="w-14 h-14 rounded-full bg-black/60 backdrop-blur-sm border-2 border-white/20 hover:bg-black/80 transition-all"
-          >
-            <Plus className="w-6 h-6 text-white" />
-          </Button>
-        </div>
+        )}
       </div>
 
-      {/* Manual Input - Maior e mais fácil de usar */}
+      {/* Manual Input Button */}
+      <Button
+        variant="outline"
+        onClick={() => setShowManualInput(!showManualInput)}
+        className="w-full h-12 rounded-2xl text-base font-semibold border-2"
+      >
+        <Plus className="w-5 h-5 mr-2" />
+        {showManualInput ? 'Fechar Registro Manual' : 'Registro Manual de Placa'}
+      </Button>
+
+      {/* Manual Input - Com busca no banco */}
       {showManualInput && (
         <div className="flex flex-col gap-3 p-4 bg-card rounded-3xl border-2 border-border shadow-lg animate-slide-up">
-          <label className="text-sm font-semibold text-muted-foreground text-center">
-            Digite a placa manualmente
-          </label>
-          <Input
-            placeholder="AAA1A23"
-            value={manualPlate}
-            onChange={(e) => setManualPlate(e.target.value.toUpperCase())}
-            className="h-16 text-center text-2xl font-mono font-bold uppercase bg-muted rounded-2xl border-2"
-            maxLength={7}
-            autoFocus
-          />
+          <div className="flex items-center justify-center gap-2">
+            <Database className="w-5 h-5 text-primary" />
+            <label className="text-sm font-semibold text-foreground">
+              Digite ou busque a placa
+            </label>
+          </div>
+
+          <div className="relative">
+            <Input
+              placeholder="AAA1A23"
+              value={manualPlate}
+              onChange={(e) => handleManualPlateChange(e.target.value)}
+              className="h-16 text-center text-2xl font-mono font-bold uppercase bg-muted rounded-2xl border-2"
+              maxLength={7}
+              autoFocus
+            />
+            {isSearching && (
+              <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            )}
+
+            {/* Suggestions dropdown */}
+            {showSuggestions && suggestions.length > 0 && (
+              <div className="absolute z-10 w-full mt-2 bg-card border-2 border-border rounded-2xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                <div className="p-2 bg-primary/10 border-b border-border">
+                  <p className="text-xs font-semibold text-primary flex items-center gap-2">
+                    <Search className="w-3 h-3" />
+                    Placas encontradas no sistema
+                  </p>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {suggestions.map((suggestion) => (
+                    <button
+                      key={suggestion.plate}
+                      type="button"
+                      onClick={() => selectSuggestion(suggestion.plate)}
+                      className="w-full px-4 py-3 text-left hover:bg-primary/10 transition-colors border-b border-border/50 last:border-0"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xl font-mono font-bold">
+                          {suggestion.plate}
+                        </span>
+                        <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                          {suggestion.count}x registrada
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Última vez: {new Date(suggestion.last_seen).toLocaleDateString('pt-BR')}
+                      </p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <Button
             onClick={handleManualAdd}
             className="h-14 text-lg font-bold rounded-2xl"
@@ -379,6 +494,12 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
           >
             Adicionar Placa
           </Button>
+
+          <p className="text-xs text-center text-muted-foreground">
+            {manualPlate.length >= 2
+              ? '💡 Sugestões aparecem automaticamente'
+              : 'Digite pelo menos 2 caracteres para ver sugestões'}
+          </p>
         </div>
       )}
 
