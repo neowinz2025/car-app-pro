@@ -66,42 +66,42 @@ export function MobileDrawer({ activeTab, onTabChange, isOpen, onToggle, plateCo
         )}
       >
         {/* Header do Drawer */}
-        <div className="flex items-center justify-between p-6 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-primary text-primary-foreground shadow-lg">
-              <Car className="w-6 h-6" />
+        <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-primary text-primary-foreground shadow-lg">
+              <Car className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-foreground">Baty Car</h2>
-              <p className="text-sm text-muted-foreground">Controle de Pátio</p>
+              <h2 className="text-base font-bold text-foreground">Baty Car</h2>
+              <p className="text-xs text-muted-foreground">Controle de Pátio</p>
             </div>
           </div>
           <Button
             variant="ghost"
             size="icon"
             onClick={onToggle}
-            className="rounded-xl"
+            className="rounded-lg h-8 w-8"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </Button>
         </div>
 
         {/* Contador de Placas */}
-        <div className="px-6 py-4 bg-primary/5">
-          <div className="flex items-center justify-between p-4 bg-primary/10 rounded-2xl border border-primary/20">
+        <div className="px-4 py-3 bg-primary/5">
+          <div className="flex items-center justify-between p-3 bg-primary/10 rounded-xl border border-primary/20">
             <div>
-              <p className="text-sm text-muted-foreground font-medium">Total de Placas</p>
-              <p className="text-3xl font-bold text-primary">{plateCount}</p>
+              <p className="text-xs text-muted-foreground font-medium">Total de Placas</p>
+              <p className="text-2xl font-bold text-primary">{plateCount}</p>
             </div>
-            <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center">
-              <Car className="w-7 h-7 text-primary" />
+            <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
+              <Car className="w-5 h-5 text-primary" />
             </div>
           </div>
         </div>
 
         {/* Menu Items */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <nav className="space-y-2">
+        <div className="flex-1 overflow-y-auto p-3">
+          <nav className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -111,19 +111,19 @@ export function MobileDrawer({ activeTab, onTabChange, isOpen, onToggle, plateCo
                   key={item.id}
                   onClick={() => handleMenuClick(item.id)}
                   className={cn(
-                    "w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all duration-200 touch-manipulation",
+                    "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200 touch-manipulation",
                     isActive
                       ? "bg-primary text-primary-foreground shadow-lg shadow-primary/30"
                       : "text-foreground hover:bg-muted active:scale-95"
                   )}
                 >
                   <div className={cn(
-                    "w-12 h-12 rounded-xl flex items-center justify-center",
+                    "w-9 h-9 rounded-lg flex items-center justify-center",
                     isActive ? "bg-white/20" : item.bg
                   )}>
-                    <Icon className={cn("w-6 h-6", isActive ? "text-white" : item.color)} />
+                    <Icon className={cn("w-5 h-5", isActive ? "text-white" : item.color)} />
                   </div>
-                  <span className="text-base font-semibold">{item.label}</span>
+                  <span className="text-sm font-semibold">{item.label}</span>
                 </button>
               );
             })}
@@ -131,14 +131,14 @@ export function MobileDrawer({ activeTab, onTabChange, isOpen, onToggle, plateCo
         </div>
 
         {/* Footer com Logout */}
-        <div className="p-4 border-t border-border">
+        <div className="p-3 border-t border-border">
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <button className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-destructive hover:bg-destructive/10 transition-all duration-200 touch-manipulation active:scale-95">
-                <div className="w-12 h-12 rounded-xl bg-destructive/10 flex items-center justify-center">
-                  <LogOut className="w-6 h-6" />
+              <button className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-destructive hover:bg-destructive/10 transition-all duration-200 touch-manipulation active:scale-95">
+                <div className="w-9 h-9 rounded-lg bg-destructive/10 flex items-center justify-center">
+                  <LogOut className="w-5 h-5" />
                 </div>
-                <span className="text-base font-semibold">Sair do Sistema</span>
+                <span className="text-sm font-semibold">Sair do Sistema</span>
               </button>
             </AlertDialogTrigger>
             <AlertDialogContent>
