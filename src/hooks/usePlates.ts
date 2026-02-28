@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PlateRecord, ActiveStep } from '@/types/plate';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -31,6 +31,39 @@ function savePlates(plates: PlateRecord[]) {
 export function usePlates() {
   const [plates, setPlates] = useState<PlateRecord[]>(loadPlates);
   const [activeStep, setActiveStep] = useState<ActiveStep>(null);
+
+  useEffect(() => {
+    loadPlatesFromDatabase();
+  }, []);
+
+  const loadPlatesFromDatabase = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('plate_records')
+        .select('*')
+        .order('timestamp', { ascending: false });
+
+      if (error) {
+        console.error('Error loading plates from database:', error);
+        return;
+      }
+
+      if (data) {
+        const dbPlates: PlateRecord[] = data.map((record: any) => ({
+          id: record.id,
+          plate: record.plate,
+          timestamp: new Date(record.timestamp),
+          loja: record.loja || false,
+          lavaJato: record.lava_jato || false,
+        }));
+
+        setPlates(dbPlates);
+        savePlates(dbPlates);
+      }
+    } catch (error) {
+      console.error('Error loading plates from database:', error);
+    }
+  };
 
   const addPlate = useCallback(async (plateText: string) => {
     const normalizedPlate = plateText.toUpperCase().replace(/[^A-Z0-9]/g, '');
