@@ -11,6 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { UsersManagement } from '@/components/users/UsersManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
+import { StoresManagement } from '@/components/stores/StoresManagement';
 import { AdminDrawer, AdminTabType } from '@/components/layout/AdminDrawer';
 import {
   AlertDialog,
@@ -677,6 +678,21 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <ApiKeysManagement />
+                </CardContent>
+              </Card>
+        );
+      case 'stores':
+        if (!isSuperAdmin()) return null;
+        return (
+              <Card className="max-w-6xl mx-auto">
+                <CardHeader>
+                  <CardTitle>Gerenciamento de Lojas</CardTitle>
+                  <CardDescription>
+                    Cadastro e controle de lojas do sistema
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <StoresManagement />
                 </CardContent>
               </Card>
         );

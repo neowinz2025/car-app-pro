@@ -78,7 +78,8 @@ export function useDamagedVehicles() {
     plate: string,
     createdBy: string,
     notes: string,
-    photos: PhotoMetadata[]
+    photos: PhotoMetadata[],
+    storeId?: string
   ): Promise<boolean> => {
     try {
       setLoading(true);
@@ -89,6 +90,7 @@ export function useDamagedVehicles() {
           plate: plate.toUpperCase(),
           created_by: createdBy,
           notes: notes,
+          store_id: storeId,
         })
         .select()
         .single();

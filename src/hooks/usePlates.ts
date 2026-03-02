@@ -49,7 +49,7 @@ function savePlates(plates: PlateRecord[]) {
   }
 }
 
-export function usePlates() {
+export function usePlates(storeId?: string) {
   const [plates, setPlates] = useState<PlateRecord[]>(loadPlates);
   const [activeStep, setActiveStep] = useState<ActiveStep>(null);
 
@@ -125,6 +125,7 @@ export function usePlates() {
           loja: activeStep === 'loja',
           lava_jato: activeStep === 'lavaJato',
           session_date: timestamp.toISOString().split('T')[0],
+          store_id: storeId,
         });
 
       if (error) {
@@ -135,7 +136,7 @@ export function usePlates() {
     }
 
     return true;
-  }, [activeStep, plates]);
+  }, [activeStep, plates, storeId]);
 
   const removePlate = useCallback((id: string) => {
     setPlates(prev => {

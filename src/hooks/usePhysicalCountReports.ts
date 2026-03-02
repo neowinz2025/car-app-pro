@@ -30,7 +30,8 @@ export function usePhysicalCountReports() {
   const saveReport = useCallback(async (
     plates: PlateRecord[],
     createdBy: string,
-    reportDate?: Date
+    reportDate?: Date,
+    storeId?: string
   ): Promise<{ success: boolean; shareToken?: string; reportId?: string }> => {
     setLoading(true);
     setError(null);
@@ -58,6 +59,7 @@ export function usePhysicalCountReports() {
           both_count: both.length,
           neither_count: neither.length,
           created_by: createdBy,
+          store_id: storeId,
         })
         .select()
         .maybeSingle();

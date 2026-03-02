@@ -20,6 +20,7 @@ import { Input } from '@/components/ui/input';
 import { ShiftCounter } from './ShiftCounter';
 import { ShiftHistoryView } from './ShiftHistoryView';
 import { useShiftHandover } from '@/hooks/useShiftHandover';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { ShiftType, SHIFT_LABELS } from '@/types/shift';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -42,6 +43,8 @@ export function ShiftView() {
     setShiftType,
   } = useShiftHandover();
 
+  const { getStoreId } = useCurrentUser();
+
   useEffect(() => {
     const session = localStorage.getItem('user_session');
     if (session) {
@@ -58,7 +61,8 @@ export function ShiftView() {
   const shiftTypes: ShiftType[] = ['manha', 'noite', 'madrugada'];
 
   const handleSave = async () => {
-    await saveShift(registeredBy || undefined);
+    const storeId = getStoreId();
+    await saveShift(registeredBy || undefined, storeId || undefined);
   };
 
   const formatForWhatsApp = () => {

@@ -10,6 +10,7 @@ import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { toast } from 'sonner';
 
 const Index = () => {
@@ -17,6 +18,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<TabType>('scanner');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const hasShownWelcome = useRef(false);
+  const { getStoreId } = useCurrentUser();
 
   useEffect(() => {
     const session = localStorage.getItem('user_session');
@@ -46,7 +48,7 @@ const Index = () => {
     clearPlates,
     fillStep,
     stats,
-  } = usePlates();
+  } = usePlates(getStoreId() || undefined);
 
   useEffect(() => {
     if (!hasShownWelcome.current && plates.length > 0) {

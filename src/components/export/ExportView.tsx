@@ -7,6 +7,7 @@ import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { generateExcelReport } from '@/lib/excelGenerator';
 import { usePhysicalCountReports } from '@/hooks/usePhysicalCountReports';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -22,6 +23,7 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
   const [createdBy, setCreatedBy] = useState<string>('');
   const [reportDate, setReportDate] = useState<string>(format(new Date(), 'yyyy-MM-dd'));
   const { saveReport } = usePhysicalCountReports();
+  const { getStoreId } = useCurrentUser();
 
   useEffect(() => {
     const session = localStorage.getItem('user_session');
@@ -147,7 +149,8 @@ export function ExportView({ plates, onFillStep, onClearPlates }: ExportViewProp
 
     try {
       const selectedDate = new Date(reportDate + 'T00:00:00');
-      const result = await saveReport(plates, createdBy, selectedDate);
+      const storeId = getStoreId();
+      const result = await saveReport(plates, createdBy, selectedDate, storeId || undefined);
 
       if (!result.success || !result.shareToken) {
         toast.error('Erro ao salvar relatório no banco de dados');

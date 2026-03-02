@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useDamagedVehicles, DamagedVehicle, PhotoMetadata } from '@/hooks/useDamagedVehicles';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { usePlates } from '@/hooks/usePlates';
 import { usePlateCache } from '@/hooks/usePlateCache';
 import { format } from 'date-fns';
@@ -30,6 +31,7 @@ export function DamagedVehiclesView() {
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
   const { loading, getAllDamagedVehicles, createDamagedVehicle, deleteDamagedVehicle } = useDamagedVehicles();
+  const { getStoreId, isAdmin } = useCurrentUser();
   const { plates } = usePlates();
   const { searchPlates } = usePlateCache();
 
@@ -169,11 +171,18 @@ export function DamagedVehiclesView() {
       return;
     }
 
+    const storeId = getStoreId();
+    if (!storeId && !isAdmin()) {
+      toast.error('Usuário não está vinculado a uma loja');
+      return;
+    }
+
     const success = await createDamagedVehicle(
       selectedPlate,
       createdBy,
       notes,
-      selectedFiles
+      selectedFiles,
+      storeId || undefined
     );
 
     if (success) {

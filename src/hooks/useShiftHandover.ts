@@ -62,13 +62,14 @@ export function useShiftHandover() {
     }));
   }, []);
 
-  const saveShift = useCallback(async (registeredBy?: string) => {
+  const saveShift = useCallback(async (registeredBy?: string, storeId?: string) => {
     setIsSaving(true);
     try {
       const payload = {
         ...currentShift,
         registered_by: registeredBy || null,
         registered_at: new Date().toISOString(),
+        store_id: storeId,
       };
 
       const { error } = await supabase
