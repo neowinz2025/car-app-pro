@@ -17,7 +17,9 @@ export function StoresManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
   const [newStoreName, setNewStoreName] = useState('');
+  const [newStoreAddress, setNewStoreAddress] = useState('');
   const [editStoreName, setEditStoreName] = useState('');
+  const [editStoreAddress, setEditStoreAddress] = useState('');
   const [newLogoFile, setNewLogoFile] = useState<File | null>(null);
   const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
@@ -48,10 +50,11 @@ export function StoresManagement() {
       return;
     }
 
-    const success = await createStore(newStoreName, newLogoFile || undefined);
+    const success = await createStore(newStoreName, newLogoFile || undefined, newStoreAddress || undefined);
     if (success) {
       setIsCreateDialogOpen(false);
       setNewStoreName('');
+      setNewStoreAddress('');
       setNewLogoFile(null);
       setLogoPreview(null);
       loadStores();
@@ -70,13 +73,15 @@ export function StoresManagement() {
       editingStore.id,
       editStoreName,
       editLogoFile || undefined,
-      removeLogo
+      removeLogo,
+      editStoreAddress || undefined
     );
 
     if (success) {
       setIsEditDialogOpen(false);
       setEditingStore(null);
       setEditStoreName('');
+      setEditStoreAddress('');
       setEditLogoFile(null);
       setEditLogoPreview(null);
       setRemoveLogo(false);
@@ -123,6 +128,7 @@ export function StoresManagement() {
   const openEditDialog = (store: Store) => {
     setEditingStore(store);
     setEditStoreName(store.name);
+    setEditStoreAddress(store.address || '');
     setEditLogoPreview(store.logo_url || null);
     setEditLogoFile(null);
     setRemoveLogo(false);
@@ -161,6 +167,16 @@ export function StoresManagement() {
                   value={newStoreName}
                   onChange={(e) => setNewStoreName(e.target.value)}
                   placeholder="Digite o nome da loja"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="store-address">Endereço da Loja (opcional)</Label>
+                <Input
+                  id="store-address"
+                  value={newStoreAddress}
+                  onChange={(e) => setNewStoreAddress(e.target.value)}
+                  placeholder="Digite o endereço completo da loja"
                 />
               </div>
 
@@ -300,6 +316,16 @@ export function StoresManagement() {
                   value={editStoreName}
                   onChange={(e) => setEditStoreName(e.target.value)}
                   placeholder="Digite o nome da loja"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-store-address">Endereço da Loja</Label>
+                <Input
+                  id="edit-store-address"
+                  value={editStoreAddress}
+                  onChange={(e) => setEditStoreAddress(e.target.value)}
+                  placeholder="Digite o endereço completo da loja"
                 />
               </div>
 

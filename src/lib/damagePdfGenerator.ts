@@ -11,6 +11,10 @@ interface DamageReportData {
   created_at: string;
   notes: string;
   photos: DamagePhoto[];
+  storeName?: string;
+  storeAddress?: string;
+  storeLogo?: string;
+  reportNumber?: string;
 }
 
 export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
@@ -25,39 +29,83 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
   const margin = 15;
   const contentWidth = pageWidth - (margin * 2);
 
-  pdf.setFontSize(20);
-  pdf.setFont('helvetica', 'bold');
-  pdf.text('RELATÓRIO DE AVARIA', pageWidth / 2, 20, { align: 'center' });
+  let yPosition = margin;
 
-  pdf.setFontSize(10);
-  pdf.setFont('helvetica', 'normal');
-  pdf.setTextColor(100);
-  pdf.text(new Date(data.created_at).toLocaleString('pt-BR'), pageWidth / 2, 27, { align: 'center' });
+  if (data.storeLogo) {
+    try {
+      const logoData = await loadImageAsDataURL(data.storeLogo);
+      const logoHeight = 20;
+      const logoWidth = 40;
+      pdf.addImage(logoData, 'PNG', margin, yPosition, logoWidth, logoHeight);
+      yPosition += logoHeight + 3;
+    } catch (error) {
+      console.error('Error loading store logo:', error);
+    }
+  }
+
+  if (data.storeName) {
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(data.storeName, margin, yPosition);
+    yPosition += 6;
+  }
+
+  if (data.storeAddress) {
+    pdf.setFontSize(9);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(80);
+    const addressLines = pdf.splitTextToSize(data.storeAddress, contentWidth - 10);
+    pdf.text(addressLines, margin, yPosition);
+    yPosition += (addressLines.length * 4) + 5;
+  }
 
   pdf.setDrawColor(200);
-  pdf.line(margin, 30, pageWidth - margin, 30);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 8;
 
-  let yPosition = 40;
+  pdf.setFontSize(18);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setTextColor(0);
+  const reportTitle = data.reportNumber ? `Relatório de Avaria Nº ${data.reportNumber}` : 'RELATÓRIO DE AVARIA';
+  pdf.text(reportTitle, pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 8;
+
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.setTextColor(100);
+  pdf.text(`Data de emissão: ${new Date(data.created_at).toLocaleString('pt-BR')}`, pageWidth / 2, yPosition, { align: 'center' });
+  yPosition += 10;
 
   pdf.setFontSize(12);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(0);
-  pdf.text('DADOS DO VEÍCULO', margin, yPosition);
-  yPosition += 8;
+  pdf.text('1. INFORMAÇÕES DO VEÍCULO', margin, yPosition);
+  yPosition += 7;
 
   pdf.setFontSize(10);
   pdf.setFont('helvetica', 'normal');
   pdf.text(`Placa: ${data.plate}`, margin + 5, yPosition);
-  yPosition += 6;
-  pdf.text(`Registrado por: ${data.created_by}`, margin + 5, yPosition);
-  yPosition += 6;
-  pdf.text(`Data/Hora: ${new Date(data.created_at).toLocaleString('pt-BR')}`, margin + 5, yPosition);
   yPosition += 10;
+
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('2. INFORMAÇÕES DO REGISTRO', margin, yPosition);
+  yPosition += 7;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(`Data e Hora: ${new Date(data.created_at).toLocaleString('pt-BR')}`, margin + 5, yPosition);
+  yPosition += 5;
+  pdf.text(`Registrado por: ${data.created_by}`, margin + 5, yPosition);
+  yPosition += 5;
+  if (data.storeName) {
+    pdf.text(`Filial: ${data.storeName}`, margin + 5, yPosition);
+    yPosition += 5;
+  }
+  yPosition += 5;
 
   if (data.notes) {
     pdf.setFont('helvetica', 'bold');
-    pdf.text('OBSERVAÇÕES', margin, yPosition);
-    yPosition += 6;
+    pdf.text('3. DESCRIÇÃO DA AVARIA', margin, yPosition);
+    yPosition += 7;
 
     pdf.setFont('helvetica', 'normal');
     const notesLines = pdf.splitTextToSize(data.notes, contentWidth - 10);
@@ -67,7 +115,7 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
 
   if (data.photos.length > 0) {
     pdf.setFont('helvetica', 'bold');
-    pdf.text('FOTOS DAS AVARIAS', margin, yPosition);
+    pdf.text('4. FOTOS', margin, yPosition);
     yPosition += 8;
 
     const photoWidth = (contentWidth - 10) / 2;

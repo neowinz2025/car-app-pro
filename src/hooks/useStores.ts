@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 export interface Store {
   id: string;
   name: string;
+  address?: string;
   logo_url?: string;
   is_active: boolean;
   created_at: string;
@@ -75,7 +76,8 @@ export function useStores() {
 
   const createStore = async (
     name: string,
-    logoFile?: File
+    logoFile?: File,
+    address?: string
   ): Promise<boolean> => {
     try {
       setLoading(true);
@@ -103,6 +105,7 @@ export function useStores() {
         .from('stores')
         .insert({
           name,
+          address,
           logo_url: logoUrl,
           is_active: true,
         });
@@ -124,7 +127,8 @@ export function useStores() {
     id: string,
     name: string,
     logoFile?: File,
-    removeLogo?: boolean
+    removeLogo?: boolean,
+    address?: string
   ): Promise<boolean> => {
     try {
       setLoading(true);
@@ -179,6 +183,7 @@ export function useStores() {
 
       const updateData: any = {
         name,
+        address,
         updated_at: new Date().toISOString(),
       };
 

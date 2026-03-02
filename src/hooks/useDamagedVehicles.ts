@@ -138,12 +138,30 @@ export function useDamagedVehicles() {
       toast.success('Gerando relatório PDF...', { duration: 2000 });
 
       try {
+        let storeData = { name: '', address: '', logo_url: '' };
+        if (storeId) {
+          const { data: store } = await supabase
+            .from('stores')
+            .select('name, address, logo_url')
+            .eq('id', storeId)
+            .maybeSingle();
+          if (store) {
+            storeData = store;
+          }
+        }
+
+        const reportNumber = vehicle.id.substring(0, 8).toUpperCase();
+
         const pdfBlob = await generateDamagePDF({
           plate: vehicle.plate,
           created_by: vehicle.created_by,
           created_at: vehicle.created_at,
           notes: vehicle.notes || '',
           photos: photoUrls,
+          storeName: storeData.name,
+          storeAddress: storeData.address || undefined,
+          storeLogo: storeData.logo_url || undefined,
+          reportNumber,
         });
 
         const pdfFileName = `${vehicle.id}/relatorio_${Date.now()}.pdf`;
