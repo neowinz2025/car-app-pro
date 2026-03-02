@@ -11,6 +11,7 @@ interface CreateUserRequest {
   name: string;
   cpf: string;
   role: 'admin' | 'user';
+  storeId?: string;
   createdBy: string;
 }
 
@@ -27,7 +28,7 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { name, cpf, role, createdBy }: CreateUserRequest = await req.json();
+    const { name, cpf, role, storeId, createdBy }: CreateUserRequest = await req.json();
 
     if (!name || !cpf) {
       return new Response(
@@ -62,6 +63,7 @@ Deno.serve(async (req: Request) => {
         name,
         cpf,
         role: role || 'user',
+        store_id: storeId || null,
         created_by: createdBy,
         active: true,
       })

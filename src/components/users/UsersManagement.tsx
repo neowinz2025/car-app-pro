@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit, User, Shield, UserCheck, UserX } from 'lucide-react';
+import { Plus, Trash2, Edit, User, Shield, UserCheck, UserX, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,6 +22,12 @@ interface SystemUser {
   created_at: string;
   created_by: string | null;
   last_login: string | null;
+  store_id: string | null;
+}
+
+interface StoreOption {
+  id: string;
+  name: string;
 }
 
 interface UsersManagementProps {
@@ -30,6 +36,7 @@ interface UsersManagementProps {
 
 export function UsersManagement({ adminUsername }: UsersManagementProps) {
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [stores, setStores] = useState<StoreOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
@@ -38,10 +45,12 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
     name: '',
     cpf: '',
     role: 'user' as 'admin' | 'user',
+    storeId: '',
   });
 
   useEffect(() => {
     loadUsers();
+    loadStores();
   }, []);
 
   const loadUsers = async () => {
@@ -58,6 +67,22 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadStores = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('stores')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+      setStores(data || []);
+    } catch (error) {
+      console.error('Error loading stores:', error);
+      toast.error('Erro ao carregar lojas');
     }
   };
 
@@ -104,6 +129,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
             userId: editingUser.id,
             name: formData.name,
             role: formData.role,
+            storeId: formData.storeId || null,
             adminUsername,
           }),
         });
@@ -126,6 +152,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
             name: formData.name,
             cpf: formData.cpf,
             role: formData.role,
+            storeId: formData.storeId || null,
             createdBy: adminUsername,
           }),
         });
@@ -216,6 +243,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: user.name,
       cpf: user.cpf,
       role: user.role,
+      storeId: user.store_id || '',
     });
     setIsDialogOpen(true);
   };
@@ -225,8 +253,15 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: '',
       cpf: '',
       role: 'user',
+      storeId: '',
     });
     setEditingUser(null);
+  };
+
+  const getStoreName = (storeId: string | null) => {
+    if (!storeId) return null;
+    const store = stores.find(s => s.id === storeId);
+    return store?.name || null;
   };
 
   const handleDialogClose = (open: boolean) => {
@@ -319,6 +354,34 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="store">Loja</Label>
+                <Select
+                  value={formData.storeId}
+                  onValueChange={(value) => setFormData({ ...formData, storeId: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma loja (opcional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        <Store className="w-4 h-4" />
+                        Nenhuma loja
+                      </div>
+                    </SelectItem>
+                    {stores.map((store) => (
+                      <SelectItem key={store.id} value={store.id}>
+                        <div className="flex items-center gap-2">
+                          <Store className="w-4 h-4" />
+                          {store.name}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               <Button onClick={handleSubmit} className="w-full">
                 {editingUser ? 'Atualizar Usuário' : 'Cadastrar Usuário'}
               </Button>
@@ -387,6 +450,15 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                       {user.created_by && (
                         <div>
                           <span className="font-medium">Por:</span> {user.created_by}
+                        </div>
+                      )}
+                      {getStoreName(user.store_id) && (
+                        <div className="col-span-2">
+                          <span className="font-medium">Loja:</span>{' '}
+                          <Badge variant="outline" className="ml-1">
+                            <Store className="w-3 h-3 mr-1" />
+                            {getStoreName(user.store_id)}
+                          </Badge>
                         </div>
                       )}
                       {user.last_login && (

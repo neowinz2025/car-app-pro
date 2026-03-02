@@ -12,6 +12,7 @@ interface UpdateUserRequest {
   userId: string;
   name: string;
   role: 'admin' | 'user';
+  storeId?: string;
   password?: string;
   adminUsername: string;
 }
@@ -29,7 +30,7 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { userId, name, role, password }: UpdateUserRequest = await req.json();
+    const { userId, name, role, storeId, password }: UpdateUserRequest = await req.json();
 
     if (!userId || !name) {
       return new Response(
@@ -43,6 +44,7 @@ Deno.serve(async (req: Request) => {
       .update({
         name,
         role: role || 'user',
+        store_id: storeId || null,
       })
       .eq('id', userId);
 
