@@ -22,19 +22,18 @@ export function useCurrentUser() {
     try {
       setLoading(true);
 
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (!user) {
+      const sessionStr = localStorage.getItem('user_session');
+      if (!sessionStr) {
         setCurrentUser(null);
         return;
       }
 
-      const cpf = user.id;
+      const session = JSON.parse(sessionStr);
 
       const { data, error } = await supabase
         .from('users')
         .select('*')
-        .eq('cpf', cpf)
+        .eq('id', session.id)
         .maybeSingle();
 
       if (error) throw error;

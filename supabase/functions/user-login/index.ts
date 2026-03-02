@@ -87,6 +87,7 @@ Deno.serve(async (req: Request) => {
           name: user.name,
           cpf: user.cpf,
           role: user.role,
+          store_id: user.store_id,
         },
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

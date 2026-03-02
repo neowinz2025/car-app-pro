@@ -70,6 +70,7 @@ export default function UserLogin() {
         name: data.user.name,
         cpf: data.user.cpf,
         role: data.user.role,
+        store_id: data.user.store_id,
         loginTime: new Date().toISOString(),
       }));
 
