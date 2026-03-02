@@ -34,16 +34,20 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
   if (data.storeLogo) {
     try {
       const logoData = await loadImageAsDataURL(data.storeLogo);
-      const logoHeight = 20;
-      const logoWidth = 40;
+      const logoHeight = 15;
+      const logoWidth = 30;
       pdf.addImage(logoData, 'PNG', margin, yPosition, logoWidth, logoHeight);
-      yPosition += logoHeight + 3;
+      yPosition += logoHeight + 5;
     } catch (error) {
       console.error('Error loading store logo:', error);
+      if (data.storeName) {
+        pdf.setFontSize(14);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(data.storeName, margin, yPosition);
+        yPosition += 6;
+      }
     }
-  }
-
-  if (data.storeName) {
+  } else if (data.storeName) {
     pdf.setFontSize(14);
     pdf.setFont('helvetica', 'bold');
     pdf.text(data.storeName, margin, yPosition);
@@ -161,6 +165,15 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
   const totalPages = (pdf as any).internal.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     pdf.setPage(i);
+
+    if (data.reportNumber) {
+      pdf.text(
+        `Relatório Nº ${data.reportNumber}`,
+        margin,
+        pageHeight - 10
+      );
+    }
+
     pdf.text(
       `Página ${i} de ${totalPages}`,
       pageWidth / 2,
@@ -174,29 +187,44 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
 
 async function loadImageAsDataURL(url: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
+    fetch(url)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.blob();
+      })
+      .then(blob => {
+        const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
 
-    img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
 
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Failed to get canvas context'));
-        return;
-      }
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('Failed to get canvas context'));
+            return;
+          }
 
-      ctx.drawImage(img, 0, 0);
-      const dataURL = canvas.toDataURL('image/jpeg', 0.8);
-      resolve(dataURL);
-    };
+          ctx.drawImage(img, 0, 0);
+          const dataURL = canvas.toDataURL('image/jpeg', 0.9);
+          URL.revokeObjectURL(objectUrl);
+          resolve(dataURL);
+        };
 
-    img.onerror = () => {
-      reject(new Error(`Failed to load image: ${url}`));
-    };
+        img.onerror = () => {
+          URL.revokeObjectURL(objectUrl);
+          reject(new Error(`Failed to load image: ${url}`));
+        };
 
-    img.src = url;
+        img.src = objectUrl;
+      })
+      .catch(error => {
+        reject(error);
+      });
   });
 }
