@@ -13,7 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export type AdminTabType = 'reports' | 'plates' | 'bate-fisco' | 'shifts' | 'damaged' | 'users' | 'api-keys' | 'stores';
+export type AdminTabType = 'reports' | 'plates' | 'bate-fisco' | 'shifts' | 'damaged' | 'users' | 'admins' | 'api-keys' | 'stores';
 
 interface AdminDrawerProps {
   activeTab: AdminTabType;
@@ -37,6 +37,7 @@ const getMenuItems = (isSuperAdmin: boolean) => {
   ];
 
   if (isSuperAdmin) {
+    baseItems.push({ id: 'admins' as const, icon: Shield, label: 'Administradores', color: 'text-primary', bg: 'bg-primary/10' });
     baseItems.push({ id: 'stores' as const, icon: Building2, label: 'Lojas', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
     baseItems.push({ id: 'api-keys' as const, icon: Key, label: 'API Keys', color: 'text-yellow-500', bg: 'bg-yellow-500/10' });
   }

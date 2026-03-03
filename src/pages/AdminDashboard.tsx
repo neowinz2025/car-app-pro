@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
 import { UsersManagement } from '@/components/users/UsersManagement';
+import { AdminsManagement } from '@/components/admin/AdminsManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
 import { StoresManagement } from '@/components/stores/StoresManagement';
 import { AdminDrawer, AdminTabType } from '@/components/layout/AdminDrawer';
@@ -663,6 +664,24 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <UsersManagement adminUsername={adminUsername || 'admin'} />
+              </CardContent>
+            </Card>
+        );
+      case 'admins':
+        if (!isSuperAdmin()) return null;
+        return (
+            <Card className="max-w-4xl mx-auto">
+              <CardHeader>
+                <CardTitle>Gerenciamento de Administradores</CardTitle>
+                <CardDescription>
+                  Cadastro e controle de administradores do painel
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AdminsManagement
+                  currentAdminUsername={adminUsername || 'admin'}
+                  isSuperAdmin={isSuperAdmin()}
+                />
               </CardContent>
             </Card>
         );
