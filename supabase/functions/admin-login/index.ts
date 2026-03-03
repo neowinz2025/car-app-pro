@@ -13,15 +13,6 @@ interface LoginRequest {
   password: string;
 }
 
-interface Admin {
-  id: string;
-  username: string;
-  password_hash: string;
-  role: string;
-  created_at: string;
-  last_login: string | null;
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -35,44 +26,40 @@ Deno.serve(async (req) => {
 
     if (!username || !password) {
       return new Response(
-        JSON.stringify({ error: "Username and password are required" }),
+        JSON.stringify({ error: "Usuário e senha são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase environment variables");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: admin, error } = await supabase
       .from("admins")
-      .select("id, username, password_hash, role, created_at, last_login")
+      .select("id, username, password_hash, role, active, created_at, last_login")
       .eq("username", username)
       .maybeSingle();
 
     if (error || !admin) {
-      console.log("Admin not found:", username);
       return new Response(
-        JSON.stringify({ error: "Invalid username or password" }),
+        JSON.stringify({ error: "Usuário ou senha inválidos" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (admin.active === false) {
+      return new Response(
+        JSON.stringify({ error: "Conta desativada. Contate um super administrador." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
 
     if (!isPasswordValid) {
-      console.log("Invalid password for user:", username);
       return new Response(
-        JSON.stringify({ error: "Invalid username or password" }),
+        JSON.stringify({ error: "Usuário ou senha inválidos" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -100,12 +87,11 @@ Deno.serve(async (req) => {
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in admin-login function:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: errorMessage }),
+      JSON.stringify({ error: "Erro interno do servidor", details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

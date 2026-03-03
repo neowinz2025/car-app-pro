@@ -51,29 +51,25 @@ export function useAdminAuth() {
     validateSession();
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       if (!username || !password) {
-        console.error('Username and password are required');
-        return false;
+        return { success: false, error: 'Usuário e senha são obrigatórios' };
       }
 
       if (username.length < 3 || username.length > 50) {
-        console.error('Invalid username length');
-        return false;
+        return { success: false, error: 'Nome de usuário inválido' };
       }
 
       if (password.length < 6 || password.length > 100) {
-        console.error('Invalid password length');
-        return false;
+        return { success: false, error: 'Senha deve ter entre 6 e 100 caracteres' };
       }
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseAnonKey) {
-        console.error('Supabase configuration missing');
-        return false;
+        return { success: false, error: 'Erro de configuração do servidor' };
       }
 
       const apiUrl = `${supabaseUrl}/functions/v1/admin-login`;
@@ -88,16 +84,14 @@ export function useAdminAuth() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Authentication failed' }));
-        console.error('Login failed:', errorData.error);
-        return false;
+        const errorData = await response.json().catch(() => ({ error: 'Falha na autenticação' }));
+        return { success: false, error: errorData.error || 'Usuário ou senha inválidos' };
       }
 
       const data = await response.json();
 
       if (!data.success || !data.token || !data.admin || !data.admin.role) {
-        console.error('Invalid response from server');
-        return false;
+        return { success: false, error: 'Resposta inválida do servidor' };
       }
 
       const sessionData: AdminSession = {
@@ -112,10 +106,10 @@ export function useAdminAuth() {
       setIsAuthenticated(true);
       setAdminUsername(data.admin.username);
       setAdminRole(data.admin.role);
-      return true;
+      return { success: true };
     } catch (error) {
       console.error('Login error:', error);
-      return false;
+      return { success: false, error: 'Erro de conexão com o servidor' };
     }
   };
 

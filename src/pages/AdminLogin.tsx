@@ -24,14 +24,14 @@ export default function AdminLogin() {
     }
 
     setIsLoading(true);
-    const success = await login(username, password);
+    const result = await login(username, password);
     setIsLoading(false);
 
-    if (success) {
+    if (result.success) {
       toast.success('Login realizado com sucesso!');
       navigate('/admin/dashboard');
     } else {
-      toast.error('Usuário ou senha incorretos');
+      toast.error(result.error || 'Usuário ou senha incorretos');
       setPassword('');
     }
   };
