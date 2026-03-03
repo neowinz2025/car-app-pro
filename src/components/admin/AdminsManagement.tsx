@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -28,6 +27,14 @@ interface AdminsManagementProps {
   isSuperAdmin: boolean;
 }
 
+const getApiHeaders = () => ({
+  'Content-Type': 'application/json',
+  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+});
+
+const getApiUrl = (fn: string) =>
+  `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${fn}`;
+
 export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsManagementProps) {
   const [admins, setAdmins] = useState<Admin[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,13 +53,15 @@ export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsM
 
   const loadAdmins = async () => {
     try {
-      const { data, error } = await supabase
-        .from('admin')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const response = await fetch(getApiUrl('list-admins'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+      });
 
-      if (error) throw error;
-      setAdmins(data || []);
+      if (!response.ok) throw new Error('Erro ao carregar administradores');
+
+      const data = await response.json();
+      setAdmins(data.admins || []);
     } catch (error) {
       console.error('Error loading admins:', error);
       toast.error('Erro ao carregar administradores');
@@ -78,16 +87,9 @@ export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsM
     }
 
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const apiUrl = `${supabaseUrl}/functions/v1/create-admin`;
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch(getApiUrl('create-admin'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabaseAnonKey}`,
-        },
+        headers: getApiHeaders(),
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
@@ -118,12 +120,21 @@ export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsM
     }
 
     try {
-      const { error } = await supabase
-        .from('admin')
-        .update({ active: !admin.active })
-        .eq('id', admin.id);
+      const response = await fetch(getApiUrl('manage-admin'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          action: 'toggle_active',
+          adminId: admin.id,
+          callerUsername: currentAdminUsername,
+          active: !admin.active,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro ao alterar status' }));
+        throw new Error(errorData.error);
+      }
 
       toast.success(admin.active ? 'Administrador desativado' : 'Administrador ativado');
       loadAdmins();
@@ -140,12 +151,20 @@ export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsM
     }
 
     try {
-      const { error } = await supabase
-        .from('admin')
-        .delete()
-        .eq('id', adminId);
+      const response = await fetch(getApiUrl('manage-admin'), {
+        method: 'POST',
+        headers: getApiHeaders(),
+        body: JSON.stringify({
+          action: 'delete',
+          adminId,
+          callerUsername: currentAdminUsername,
+        }),
+      });
 
-      if (error) throw error;
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erro ao excluir administrador' }));
+        throw new Error(errorData.error);
+      }
 
       toast.success('Administrador excluído com sucesso');
       loadAdmins();
@@ -292,7 +311,7 @@ export function AdminsManagement({ currentAdminUsername, isSuperAdmin }: AdminsM
                         <Shield className={`w-4 h-4 ${admin.role === 'super_admin' ? 'text-primary' : 'text-blue-500'}`} />
                       </div>
                       <div className="flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h4 className="font-semibold">{admin.username}</h4>
                           <Badge variant={admin.role === 'super_admin' ? 'default' : 'secondary'}>
                             {admin.role === 'super_admin' ? 'Super Admin' : 'Admin'}

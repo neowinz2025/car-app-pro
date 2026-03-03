@@ -357,14 +357,14 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
               <div className="space-y-2">
                 <Label htmlFor="store">Loja</Label>
                 <Select
-                  value={formData.storeId}
-                  onValueChange={(value) => setFormData({ ...formData, storeId: value })}
+                  value={formData.storeId || 'none'}
+                  onValueChange={(value) => setFormData({ ...formData, storeId: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione uma loja (opcional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">
+                    <SelectItem value="none">
                       <div className="flex items-center gap-2 text-muted-foreground">
                         <Store className="w-4 h-4" />
                         Nenhuma loja

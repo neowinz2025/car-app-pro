@@ -12,7 +12,8 @@ interface CreateAdminRequest {
   username: string;
   password: string;
   role?: string;
-  masterKey: string;
+  createdBy?: string;
+  masterKey?: string;
 }
 
 Deno.serve(async (req) => {
@@ -24,57 +25,68 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { username, password, role = 'admin', masterKey }: CreateAdminRequest = await req.json();
+    const { username, password, role = 'admin', createdBy, masterKey }: CreateAdminRequest = await req.json();
 
-    const MASTER_KEY = Deno.env.get("ADMIN_MASTER_KEY") || "secure_master_key_change_this";
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    if (masterKey !== MASTER_KEY) {
+    let authorized = false;
+
+    if (masterKey) {
+      const MASTER_KEY = Deno.env.get("ADMIN_MASTER_KEY") || "secure_master_key_change_this";
+      if (masterKey === MASTER_KEY) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized && createdBy) {
+      const { data: callerAdmin } = await supabase
+        .from("admins")
+        .select("id, role, active")
+        .eq("username", createdBy)
+        .eq("active", true)
+        .maybeSingle();
+
+      if (callerAdmin && callerAdmin.role === "super_admin") {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid master key" }),
+        JSON.stringify({ error: "Não autorizado" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (!username || !password) {
       return new Response(
-        JSON.stringify({ error: "Username and password are required" }),
+        JSON.stringify({ error: "Usuário e senha são obrigatórios" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (role && !['admin', 'super_admin'].includes(role)) {
       return new Response(
-        JSON.stringify({ error: "Invalid role. Must be 'admin' or 'super_admin'" }),
+        JSON.stringify({ error: "Nível inválido. Deve ser 'admin' ou 'super_admin'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (username.length < 3 || username.length > 50) {
       return new Response(
-        JSON.stringify({ error: "Username must be between 3 and 50 characters" }),
+        JSON.stringify({ error: "Usuário deve ter entre 3 e 50 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (password.length < 8) {
+    if (password.length < 6) {
       return new Response(
-        JSON.stringify({ error: "Password must be at least 8 characters long" }),
+        JSON.stringify({ error: "Senha deve ter no mínimo 6 caracteres" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("Missing Supabase environment variables");
-      return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: existingAdmin } = await supabase
       .from("admins")
@@ -84,7 +96,7 @@ Deno.serve(async (req) => {
 
     if (existingAdmin) {
       return new Response(
-        JSON.stringify({ error: "Username already exists" }),
+        JSON.stringify({ error: "Este nome de usuário já existe" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -98,7 +110,8 @@ Deno.serve(async (req) => {
         username,
         password_hash: passwordHash,
         role,
-        created_at: new Date().toISOString(),
+        created_by: createdBy || null,
+        active: true,
       })
       .select("id, username, role, created_at")
       .single();
@@ -106,24 +119,20 @@ Deno.serve(async (req) => {
     if (error) {
       console.error("Error creating admin:", error);
       return new Response(
-        JSON.stringify({ error: "Failed to create admin", details: error.message }),
+        JSON.stringify({ error: "Erro ao criar administrador" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        admin: newAdmin,
-      }),
+      JSON.stringify({ success: true, admin: newAdmin }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
-
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Error in create-admin function:", error);
     return new Response(
-      JSON.stringify({ error: "Internal server error", details: errorMessage }),
+      JSON.stringify({ error: "Erro interno do servidor", details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
