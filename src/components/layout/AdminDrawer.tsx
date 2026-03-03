@@ -1,4 +1,4 @@
-import { Shield, LogOut, FileText, Database, ClipboardList, Users, AlertTriangle, Key, X, Car, Building2 } from 'lucide-react';
+import { Shield, LogOut, FileText, Database, ClipboardList, Users, TriangleAlert as AlertTriangle, Key, X, Car, Building2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
