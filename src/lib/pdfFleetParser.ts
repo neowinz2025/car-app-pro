@@ -306,8 +306,11 @@ function resolveDateValue(row: Record<string, string>, dateColumnKey: string): s
 function parseDateValue(raw: string): string {
   if (!raw) return 'sem-data';
   const normalized = normalizeDateToken(raw) || raw;
-  const converted = brDateToISO(normalized);
-  if (converted) return converted;
+  const brConverted = brDateToISO(normalized);
+  if (brConverted) {
+    const month = parseInt(brConverted.split('-')[1], 10);
+    if (month >= 1 && month <= 12) return brConverted;
+  }
   const usMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (usMatch) {
     const asBR = `${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`;

@@ -41,6 +41,8 @@ function emptyProjections(date: string): ReservationProjection[] {
 
 const GLOBAL_NOSHOW_KEY = 'global_no_show_rate';
 
+const AVAILABLE_FILE_TYPES = ['di', 'lv', 'no', 'cq'];
+
 async function fetchRowCountsByType(
   date: string,
   fileType: string
@@ -56,8 +58,33 @@ async function fetchRowCountsByType(
     return {};
   }
 
+  const rows = (data as { category: string; count: number }[]) ?? [];
+
+  if (rows.length === 0 && AVAILABLE_FILE_TYPES.includes(fileType)) {
+    const { data: fallbackData, error: fallbackError } = await supabase
+      .from('daily_file_rows' as never)
+      .select('category, count, upload_date')
+      .eq('file_type', fileType)
+      .lt('upload_date' as never, date)
+      .order('upload_date' as never, { ascending: false })
+      .limit(500);
+
+    if (!fallbackError && fallbackData) {
+      const fallbackRows = fallbackData as { category: string; count: number; upload_date: string }[];
+      const latestDate = fallbackRows[0]?.upload_date;
+      if (latestDate) {
+        const totals: Record<string, number> = {};
+        for (const row of fallbackRows.filter((r) => r.upload_date === latestDate)) {
+          totals[row.category] = (totals[row.category] ?? 0) + row.count;
+        }
+        return totals;
+      }
+    }
+    return {};
+  }
+
   const totals: Record<string, number> = {};
-  for (const row of (data as { category: string; count: number }[]) ?? []) {
+  for (const row of rows) {
     totals[row.category] = (totals[row.category] ?? 0) + row.count;
   }
   return totals;
