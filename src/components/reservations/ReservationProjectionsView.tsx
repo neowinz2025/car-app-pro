@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import {
   Save,
   ChartBar as BarChart3,
@@ -6,148 +6,24 @@ import {
   CircleAlert as AlertCircle,
   TrendingDown,
   CalendarDays,
-  X,
-  FileSpreadsheet,
-  Filter,
   Share2,
   Copy,
   Link,
   Percent,
   CheckCheck,
   Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useReservationProjections, computeEstimatedUsage, ImportType } from '@/hooks/useReservationProjections';
+import { useReservationProjections, computeEstimatedUsage } from '@/hooks/useReservationProjections';
 import { useProjectionShare } from '@/hooks/useProjectionShare';
 
 function formatDateBR(iso: string): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
-}
-
-interface ImportedFile {
-  name: string;
-}
-
-interface SpreadsheetImportButtonProps {
-  label: string;
-  type: ImportType;
-  dateHint: string;
-  selectedDate: string;
-  onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean, filterDate: string | null) => void;
-}
-
-function SpreadsheetImportButton({ label, type, dateHint, selectedDate, onImport }: SpreadsheetImportButtonProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<ImportedFile[]>([]);
-
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    if (!selected.length) return;
-    selected.forEach((file, idx) => {
-      const isXLSX = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-      const reader = new FileReader();
-      const acc = idx > 0 || files.length > 0;
-      reader.onload = (evt) => {
-        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, type, acc, selectedDate);
-        setFiles((prev) => [...prev, { name: file.name }]);
-      };
-      isXLSX ? reader.readAsArrayBuffer(file) : reader.readAsText(file, 'UTF-8');
-    });
-    e.target.value = '';
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden" onChange={handleFiles} />
-        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => inputRef.current?.click()}>
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          {label}
-        </Button>
-        {files.length > 0 && (
-          <button onClick={() => setFiles([])} className="text-muted-foreground hover:text-destructive transition-colors" title="Limpar">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-      <div className="flex items-center gap-1 pl-1">
-        <Filter className="w-2.5 h-2.5 text-muted-foreground/60" />
-        <span className="text-[10px] text-muted-foreground/70">
-          filtra por <em>{dateHint}</em> = {formatDateBR(selectedDate)}
-        </span>
-      </div>
-      {files.map((f, i) => (
-        <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
-          <FileSpreadsheet className="w-3 h-3 text-green-500 shrink-0" />
-          <span className="truncate max-w-[180px]">{f.name}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-interface NoDiImportButtonProps {
-  label: string;
-  onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean, filterDate: string | null) => void;
-  filesImported: ImportedFile[];
-  onFilesChange: (files: ImportedFile[]) => void;
-}
-
-function NoDiImportButton({ label, onImport, filesImported, onFilesChange }: NoDiImportButtonProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files ?? []);
-    if (!selected.length) return;
-    const newFiles = [...filesImported];
-    selected.forEach((file, idx) => {
-      const isXLSX = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const acc = idx > 0 || filesImported.length > 0;
-        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, 'available', acc, null);
-        newFiles.push({ name: file.name });
-        onFilesChange([...newFiles]);
-      };
-      isXLSX ? reader.readAsArrayBuffer(file) : reader.readAsText(file, 'UTF-8');
-    });
-    e.target.value = '';
-  };
-
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2">
-        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden" onChange={handleFiles} />
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => inputRef.current?.click()}
-        >
-          <FileSpreadsheet className="w-3.5 h-3.5" />
-          {label}
-        </Button>
-        {filesImported.length > 0 && (
-          <button onClick={() => onFilesChange([])} className="text-muted-foreground hover:text-destructive transition-colors" title="Limpar">
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
-      </div>
-      <div className="flex items-center gap-1 pl-1">
-        <span className="text-[10px] text-muted-foreground/70">coluna <em>Grupo</em></span>
-      </div>
-      {filesImported.map((f, i) => (
-        <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
-          <FileSpreadsheet className="w-3 h-3 text-green-500 shrink-0" />
-          <span className="truncate max-w-[180px]">{f.name}</span>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function DateSelector({ value, onChange }: { value: string; onChange: (date: string) => void }) {
@@ -176,8 +52,7 @@ export function ReservationProjectionsView() {
     setGlobalNoShowRate,
     globalNoShowRate,
     saveAll,
-    importSpreadsheet,
-
+    reloadFromFiles,
     totalReservations,
     totalEstimated,
     avgNoShow,
@@ -186,31 +61,10 @@ export function ReservationProjectionsView() {
   const { generateShareLink, copyShareLink, revokeShareLink, generating, shareToken } = useProjectionShare();
   const [globalNoShow, setGlobalNoShowInput] = useState<string>('');
 
-  const [diFiles, setDiFiles] = useState<ImportedFile[]>([]);
-  const [lvFiles, setLvFiles] = useState<ImportedFile[]>([]);
-  const [noFiles, setNoFiles] = useState<ImportedFile[]>([]);
-  const [cqFiles, setCqFiles] = useState<ImportedFile[]>([]);
-
-  const handleChangeDate = (date: string) => {
-    setDiFiles([]);
-    setLvFiles([]);
-    setNoFiles([]);
-    setCqFiles([]);
-    changeDate(date);
-  };
-
   const totalNoShow = totalReservations - totalEstimated;
   const totalAvailable = projections.reduce((s, p) => s + p.available_vehicles, 0);
   const totalProjection = projections.reduce((s, p) => s + p.projection, 0);
   const totalBalance = totalAvailable + totalProjection - totalEstimated;
-  const allFilesCount = diFiles.length + lvFiles.length + noFiles.length + cqFiles.length;
-
-  const handleClearNoDI = () => {
-    setDiFiles([]);
-    setLvFiles([]);
-    setNoFiles([]);
-    setCqFiles([]);
-  };
 
   return (
     <div className="space-y-6 relative">
@@ -227,14 +81,25 @@ export function ReservationProjectionsView() {
                 <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Data da Projeção
                 </p>
-                <DateSelector value={selectedDate} onChange={handleChangeDate} />
+                <DateSelector value={selectedDate} onChange={changeDate} />
               </div>
               <div className="h-8 w-px bg-border hidden md:block" />
               <p className="text-xs text-muted-foreground">
-                Dados para <strong>{formatDateBR(selectedDate)}</strong>. Importações de arquivo são filtradas automaticamente por essa data.
+                Dados para <strong>{formatDateBR(selectedDate)}</strong>. Os valores são carregados automaticamente dos arquivos enviados para essa data.
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={reloadFromFiles}
+                disabled={loading}
+                title="Recarregar dados dos arquivos enviados"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Recarregar
+              </Button>
               {shareToken ? (
                 <>
                   <Button
@@ -336,58 +201,6 @@ export function ReservationProjectionsView() {
                 <p className="text-2xl font-bold text-orange-500">{avgNoShow.toFixed(1)}%</p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card className="border border-dashed border-border bg-muted/20">
-          <CardContent className="pt-4 pb-4">
-            <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-              Reservas e Projeção de Retorno (CSV / XLSX)
-            </p>
-            <div className="flex flex-wrap gap-5">
-              <SpreadsheetImportButton
-                key={`reservas-${selectedDate}`}
-                label="Reservas"
-                type="reservations"
-                dateHint="Data Ret."
-                selectedDate={selectedDate}
-                onImport={importSpreadsheet}
-              />
-              <SpreadsheetImportButton
-                key={`retorno-${selectedDate}`}
-                label="Projeção de Retorno"
-                type="projection"
-                dateHint="Data Dev."
-                selectedDate={selectedDate}
-                onImport={importSpreadsheet}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-dashed border-blue-200 bg-blue-50/30">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                NO / DI — Veículos Disponíveis (CSV / XLSX)
-              </p>
-              {allFilesCount > 0 && (
-                <button onClick={handleClearNoDI} className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1">
-                  <X className="w-3 h-3" /> limpar
-                </button>
-              )}
-            </div>
-            <div className="flex flex-wrap gap-3">
-              <NoDiImportButton label="DI" onImport={importSpreadsheet} filesImported={diFiles} onFilesChange={setDiFiles} />
-              <NoDiImportButton label="LV" onImport={importSpreadsheet} filesImported={lvFiles} onFilesChange={setLvFiles} />
-              <NoDiImportButton label="NO" onImport={importSpreadsheet} filesImported={noFiles} onFilesChange={setNoFiles} />
-              <NoDiImportButton label="CQ" onImport={importSpreadsheet} filesImported={cqFiles} onFilesChange={setCqFiles} />
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              Filtra pela coluna <strong>Data Ret.</strong> igual à data selecionada.
-            </p>
           </CardContent>
         </Card>
       </div>
@@ -616,7 +429,7 @@ export function ReservationProjectionsView() {
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-block w-4 h-4 rounded bg-blue-50 border border-blue-300" />
-          <span>NO/DI preenchido via importação</span>
+          <span>NO/DI preenchido via arquivos</span>
         </div>
       </div>
     </div>

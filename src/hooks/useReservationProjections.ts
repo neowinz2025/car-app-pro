@@ -1,36 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
-import { parsePDFByGrupo, parseSpreadsheetRowsByDate } from '@/lib/pdfFleetParser';
 import { toast } from 'sonner';
 
 export type ImportType = 'reservations' | 'projection' | 'available';
-
-export const RESERVATIONS_DATE_COL = 'Data Ret.';
-export const PROJECTION_DATE_COL = 'Data Dev.';
-
-function parseCSVRows(text: string): Record<string, string>[] {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).map((line) => {
-    const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = cols[i] ?? ''; });
-    return row;
-  });
-}
-
-function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-  return rows.map((r) => {
-    const out: Record<string, string> = {};
-    for (const k of Object.keys(r)) out[k] = String(r[k] ?? '');
-    return out;
-  });
-}
 
 export const VEHICLE_CATEGORIES = [
   'AM','AT','B','BS','C','CA','CX','CG',
@@ -69,6 +41,52 @@ function emptyProjections(date: string): ReservationProjection[] {
 
 const GLOBAL_NOSHOW_KEY = 'global_no_show_rate';
 
+async function fetchRowCountsByType(
+  date: string,
+  fileType: string
+): Promise<Record<string, number>> {
+  const { data, error } = await supabase
+    .from('daily_file_rows' as never)
+    .select('category, count')
+    .eq('upload_date', date)
+    .eq('file_type', fileType);
+
+  if (error) {
+    console.error('Error fetching file rows:', error);
+    return {};
+  }
+
+  const totals: Record<string, number> = {};
+  for (const row of (data as { category: string; count: number }[]) ?? []) {
+    totals[row.category] = (totals[row.category] ?? 0) + row.count;
+  }
+  return totals;
+}
+
+async function fetchAllDailyFileCounts(date: string): Promise<{
+  reservations: Record<string, number>;
+  projection: Record<string, number>;
+  available: Record<string, number>;
+}> {
+  const [reservations, projection, di, lv, no, cq] = await Promise.all([
+    fetchRowCountsByType(date, 'reservations'),
+    fetchRowCountsByType(date, 'projection'),
+    fetchRowCountsByType(date, 'di'),
+    fetchRowCountsByType(date, 'lv'),
+    fetchRowCountsByType(date, 'no'),
+    fetchRowCountsByType(date, 'cq'),
+  ]);
+
+  const available: Record<string, number> = {};
+  for (const counts of [di, lv, no, cq]) {
+    for (const [cat, val] of Object.entries(counts)) {
+      available[cat] = (available[cat] ?? 0) + val;
+    }
+  }
+
+  return { reservations, projection, available };
+}
+
 export function useReservationProjections() {
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
   const selectedDateRef = useRef<string>(todayISO());
@@ -97,37 +115,52 @@ export function useReservationProjections() {
     const seq = ++loadSequence.current;
     try {
       setLoading(true);
-      const [{ data, error }, globalRate] = await Promise.all([
+
+      const [{ data, error }, globalRate, fileCounts] = await Promise.all([
         supabase.from('reservation_projections').select('*').eq('projection_date', date),
         loadGlobalNoShowRate(),
+        fetchAllDailyFileCounts(date),
       ]);
 
       if (seq !== loadSequence.current) return;
-
       if (error) throw error;
 
       const loaded = VEHICLE_CATEGORIES.map((cat) => {
         const existing = data?.find((r) => r.category === cat);
+
+        const fromFileReservations = fileCounts.reservations[cat] ?? 0;
+        const fromFileProjection = fileCounts.projection[cat] ?? 0;
+        const fromFileAvailable = fileCounts.available[cat] ?? 0;
+
         if (existing) {
+          const reservations_count =
+            fromFileReservations > 0 ? fromFileReservations : existing.reservations_count;
+          const projection =
+            fromFileProjection > 0 ? fromFileProjection : (existing.projection ?? 0);
+          const available_vehicles =
+            fromFileAvailable > 0 ? fromFileAvailable : (existing.available_vehicles ?? 0);
+
           return {
             id: existing.id,
             category: existing.category,
-            reservations_count: existing.reservations_count,
+            reservations_count,
             no_show_rate: Number(existing.no_show_rate),
-            available_vehicles: existing.available_vehicles ?? 0,
-            projection: existing.projection ?? 0,
+            available_vehicles,
+            projection,
             projection_date: existing.projection_date ?? date,
           };
         }
+
         return {
           category: cat,
-          reservations_count: 0,
+          reservations_count: fromFileReservations,
           no_show_rate: globalRate,
-          available_vehicles: 0,
-          projection: 0,
+          available_vehicles: fromFileAvailable,
+          projection: fromFileProjection,
           projection_date: date,
         };
       });
+
       setProjections(loaded);
       projectionsRef.current = loaded;
       isDirty.current = false;
@@ -209,80 +242,6 @@ export function useReservationProjections() {
     }
   };
 
-  const applyImportCounts = (
-    counts: Record<string, number>,
-    type: ImportType,
-    accumulate: boolean,
-    label: string,
-    filteredDate: string | null
-  ) => {
-    const total = Object.values(counts).reduce((s, v) => s + v, 0);
-    if (total === 0) {
-      if (filteredDate) {
-        toast.error(`Nenhum veículo encontrado para a data ${filteredDate.split('-').reverse().join('/')}. Verifique se o arquivo contém dados para essa data.`);
-      } else {
-        toast.error('Nenhum veículo encontrado no arquivo. Verifique a coluna "Grupo".');
-      }
-      return;
-    }
-    markDirty();
-    setProjections((prev) => {
-      const next = prev.map((p) => {
-        const val = counts[p.category] ?? 0;
-        if (type === 'reservations') return { ...p, reservations_count: accumulate ? p.reservations_count + val : val };
-        if (type === 'projection') return { ...p, projection: accumulate ? p.projection + val : val };
-        if (type === 'available') return { ...p, available_vehicles: accumulate ? p.available_vehicles + val : val };
-        return p;
-      });
-      projectionsRef.current = next;
-      return next;
-    });
-    const dateLabel = filteredDate
-      ? ` (${filteredDate.split('-').reverse().join('/')})`
-      : '';
-    toast.success(`${label} importado${dateLabel}: ${total} veículos`);
-  };
-
-  const importSpreadsheet = (
-    data: string | ArrayBuffer,
-    isXLSX: boolean,
-    type: ImportType,
-    accumulate: boolean,
-    filterDate: string | null
-  ) => {
-    const rows = isXLSX
-      ? parseXLSXRows(data as ArrayBuffer)
-      : parseCSVRows(data as string);
-
-    const dateCol =
-      type === 'reservations' ? RESERVATIONS_DATE_COL
-      : type === 'projection' ? PROJECTION_DATE_COL
-      : null;
-
-    const counts = parseSpreadsheetRowsByDate(rows, dateCol ?? '', filterDate);
-    const label =
-      type === 'reservations' ? 'Reservas'
-      : type === 'projection' ? 'Projeção de Retorno'
-      : 'Disponível';
-
-    applyImportCounts(counts, type, accumulate, label, filterDate);
-  };
-
-  const importPDF = async (
-    buffer: ArrayBuffer,
-    fileName: string,
-    accumulate: boolean,
-    filterDate: string | null
-  ) => {
-    try {
-      const counts = await parsePDFByGrupo(buffer, filterDate);
-      applyImportCounts(counts, 'available', accumulate, fileName, filterDate);
-    } catch (err) {
-      console.error('PDF parse error:', err);
-      toast.error(`Erro ao ler PDF: ${fileName}`);
-    }
-  };
-
   const buildUpsertPayload = (rows: ReservationProjection[], date: string) =>
     rows.map((p) => ({
       ...(p.id ? { id: p.id } : {}),
@@ -314,6 +273,11 @@ export function useReservationProjections() {
     }
   };
 
+  const reloadFromFiles = useCallback(async () => {
+    await load(selectedDateRef.current);
+    toast.success('Dados recarregados dos arquivos enviados');
+  }, [load]);
+
   const totalReservations = projections.reduce((s, p) => s + p.reservations_count, 0);
   const totalEstimated = projections.reduce(
     (s, p) => s + computeEstimatedUsage(p.reservations_count, p.no_show_rate),
@@ -337,8 +301,7 @@ export function useReservationProjections() {
     setGlobalNoShowRate,
     globalNoShowRate,
     saveAll,
-    importSpreadsheet,
-    importPDF,
+    reloadFromFiles,
     totalReservations,
     totalEstimated,
     avgNoShow,

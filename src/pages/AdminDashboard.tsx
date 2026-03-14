@@ -14,6 +14,7 @@ import { AdminsManagement } from '@/components/admin/AdminsManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
 import { StoresManagement } from '@/components/stores/StoresManagement';
 import { ReservationProjectionsView } from '@/components/reservations/ReservationProjectionsView';
+import { DailyUploadsView } from '@/components/reservations/DailyUploadsView';
 import { AdminDrawer, AdminTabType } from '@/components/layout/AdminDrawer';
 import {
   AlertDialog,
@@ -674,11 +675,25 @@ export default function AdminDashboard() {
             <CardHeader>
               <CardTitle>Projeção de Reservas Futuras</CardTitle>
               <CardDescription>
-                Controle de categorias de veículos com aplicação da taxa de no-show
+                Controle de categorias de veículos com aplicação da taxa de no-show. Os dados são carregados automaticamente dos arquivos enviados.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <ReservationProjectionsView />
+            </CardContent>
+          </Card>
+        );
+      case 'file-uploads':
+        return (
+          <Card className="max-w-4xl mx-auto">
+            <CardHeader>
+              <CardTitle>Envio de Arquivos Diários</CardTitle>
+              <CardDescription>
+                Envie os arquivos CSV, XLSX ou PDF do dia. Os dados extraídos ficam salvos no banco e a Projeção de Reservas os carrega automaticamente ao selecionar a data.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DailyUploadsView />
             </CardContent>
           </Card>
         );

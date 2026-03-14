@@ -1,0 +1,272 @@
+import { useEffect, useRef, useState } from 'react';
+import { CalendarDays, Upload, Trash2, FileSpreadsheet, FileText, RefreshCw, CircleCheck as CheckCircle2, Clock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { useFileUploads, FileType } from '@/hooks/useFileUploads';
+
+function formatDateBR(iso: string): string {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+const FILE_TYPES: { key: FileType; label: string; description: string; accept: string; color: string }[] = [
+  {
+    key: 'reservations',
+    label: 'Reservas',
+    description: 'Coluna Data Ret.',
+    accept: '.csv,.xlsx,.xls',
+    color: 'blue',
+  },
+  {
+    key: 'projection',
+    label: 'Projeção de Retorno',
+    description: 'Coluna Data Dev.',
+    accept: '.csv,.xlsx,.xls',
+    color: 'green',
+  },
+  {
+    key: 'di',
+    label: 'DI',
+    description: 'Disponível / Data Ret.',
+    accept: '.csv,.xlsx,.xls,.pdf',
+    color: 'amber',
+  },
+  {
+    key: 'lv',
+    label: 'LV',
+    description: 'Disponível / Data Ret.',
+    accept: '.csv,.xlsx,.xls,.pdf',
+    color: 'amber',
+  },
+  {
+    key: 'no',
+    label: 'NO',
+    description: 'Disponível / Data Ret.',
+    accept: '.csv,.xlsx,.xls,.pdf',
+    color: 'amber',
+  },
+  {
+    key: 'cq',
+    label: 'CQ',
+    description: 'Disponível / Data Ret.',
+    accept: '.csv,.xlsx,.xls,.pdf',
+    color: 'amber',
+  },
+];
+
+const COLOR_MAP: Record<string, string> = {
+  blue: 'bg-blue-50 border-blue-200 text-blue-700',
+  green: 'bg-green-50 border-green-200 text-green-700',
+  amber: 'bg-amber-50 border-amber-200 text-amber-700',
+};
+
+const BADGE_MAP: Record<string, string> = {
+  blue: 'bg-blue-100 text-blue-700',
+  green: 'bg-green-100 text-green-700',
+  amber: 'bg-amber-100 text-amber-700',
+};
+
+interface UploadCardProps {
+  fileType: typeof FILE_TYPES[number];
+  uploadDate: string;
+  existingFiles: { id: string; file_name: string; row_count: number; uploaded_at: string }[];
+  onUpload: (file: File, type: FileType, date: string) => Promise<boolean>;
+  onDelete: (id: string, date: string) => void;
+  uploading: boolean;
+}
+
+function UploadCard({ fileType, uploadDate, existingFiles, onUpload, onDelete, uploading }: UploadCardProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [localUploading, setLocalUploading] = useState(false);
+
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    if (!selected.length) return;
+    setLocalUploading(true);
+    for (const file of selected) {
+      await onUpload(file, fileType.key, uploadDate);
+    }
+    setLocalUploading(false);
+    e.target.value = '';
+  };
+
+  const isLoading = uploading && localUploading;
+  const hasFiles = existingFiles.length > 0;
+  const colorClass = COLOR_MAP[fileType.color];
+  const badgeClass = BADGE_MAP[fileType.color];
+
+  return (
+    <div className={`rounded-lg border p-4 ${colorClass}`}>
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+              {fileType.label}
+            </span>
+            {hasFiles && (
+              <CheckCircle2 className="w-4 h-4 text-green-600" />
+            )}
+          </div>
+          <p className="text-xs mt-1 opacity-70">{fileType.description}</p>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept={fileType.accept}
+          multiple
+          className="hidden"
+          onChange={handleFiles}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 text-xs shrink-0 bg-white/80 hover:bg-white"
+          onClick={() => inputRef.current?.click()}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Upload className="w-3.5 h-3.5" />
+          )}
+          {isLoading ? 'Importando...' : 'Enviar'}
+        </Button>
+      </div>
+
+      {hasFiles ? (
+        <div className="space-y-1.5">
+          {existingFiles.map((f) => (
+            <div
+              key={f.id}
+              className="flex items-center justify-between gap-2 bg-white/70 rounded-md px-2.5 py-1.5"
+            >
+              <div className="flex items-center gap-1.5 min-w-0">
+                {f.file_name.toLowerCase().endsWith('.pdf') ? (
+                  <FileText className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                ) : (
+                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-green-600" />
+                )}
+                <span className="text-xs font-medium truncate max-w-[120px]">{f.file_name}</span>
+                <span className="text-xs text-muted-foreground shrink-0">{f.row_count} veíc.</span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                  <Clock className="w-3 h-3" />
+                  {formatTime(f.uploaded_at)}
+                </span>
+                <button
+                  onClick={() => onDelete(f.id, uploadDate)}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  title="Remover arquivo"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-xs opacity-60 italic">Nenhum arquivo para essa data</p>
+      )}
+    </div>
+  );
+}
+
+export function DailyUploadsView() {
+  const [selectedDate, setSelectedDate] = useState(todayISO());
+  const { uploads, uploading, loadingList, loadUploads, uploadFile, deleteUpload } = useFileUploads();
+
+  useEffect(() => {
+    loadUploads(selectedDate);
+  }, [loadUploads, selectedDate]);
+
+  const getFilesForType = (type: FileType) =>
+    uploads.filter((u) => u.file_type === type);
+
+  const totalFiles = uploads.length;
+  const totalVehicles = uploads.reduce((s, u) => s + u.row_count, 0);
+
+  return (
+    <div className="space-y-6">
+      <Card className="border border-border bg-muted/10">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <CalendarDays className="w-4 h-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
+                  Data dos Arquivos
+                </p>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="border rounded px-3 h-9 text-sm bg-background cursor-pointer font-medium"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              {loadingList ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <span>
+                    <strong className="text-foreground">{totalFiles}</strong> arquivo{totalFiles !== 1 ? 's' : ''}
+                  </span>
+                  <span>
+                    <strong className="text-foreground">{totalVehicles}</strong> veículos
+                  </span>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Arquivos de {formatDateBR(selectedDate)}</CardTitle>
+          <CardDescription>
+            Envie os arquivos diários aqui. Os dados ficam salvos no banco e a tela de
+            Projeções carrega automaticamente ao selecionar a data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FILE_TYPES.map((ft) => (
+              <UploadCard
+                key={ft.key}
+                fileType={ft}
+                uploadDate={selectedDate}
+                existingFiles={getFilesForType(ft.key)}
+                onUpload={uploadFile}
+                onDelete={deleteUpload}
+                uploading={uploading}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="text-xs text-muted-foreground px-1 space-y-1">
+        <p>
+          Os dados extraídos ficam armazenados no banco de dados vinculados à data selecionada.
+        </p>
+        <p>
+          Na tela de <strong>Projeções</strong>, ao selecionar uma data, os valores de Reservas,
+          Projeção de Retorno e Disponível (NO/DI) são preenchidos automaticamente a partir dos
+          arquivos já enviados.
+        </p>
+      </div>
+    </div>
+  );
+}

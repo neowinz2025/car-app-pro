@@ -1,4 +1,4 @@
-import { Shield, LogOut, FileText, Database, ClipboardList, Users, TriangleAlert as AlertTriangle, Key, X, Car, Building2, CalendarClock } from 'lucide-react';
+import { Shield, LogOut, FileText, Database, ClipboardList, Users, TriangleAlert as AlertTriangle, Key, X, Car, Building2, CalendarClock, FolderUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +13,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export type AdminTabType = 'reports' | 'plates' | 'bate-fisco' | 'shifts' | 'damaged' | 'users' | 'reservations' | 'admins' | 'api-keys' | 'stores';
+export type AdminTabType = 'reports' | 'plates' | 'bate-fisco' | 'shifts' | 'damaged' | 'users' | 'reservations' | 'file-uploads' | 'admins' | 'api-keys' | 'stores';
 
 interface AdminDrawerProps {
   activeTab: AdminTabType;
@@ -35,6 +35,7 @@ const getMenuItems = (isSuperAdmin: boolean) => {
     { id: 'damaged' as const, icon: AlertTriangle, label: 'Avarias', color: 'text-red-500', bg: 'bg-red-500/10' },
     { id: 'users' as const, icon: Users, label: 'Usuários', color: 'text-orange-500', bg: 'bg-orange-500/10' },
     { id: 'reservations' as const, icon: CalendarClock, label: 'Projeção de Reservas', color: 'text-teal-500', bg: 'bg-teal-500/10' },
+    { id: 'file-uploads' as const, icon: FolderUp, label: 'Envio de Arquivos', color: 'text-sky-500', bg: 'bg-sky-500/10' },
   ];
 
   if (isSuperAdmin) {
