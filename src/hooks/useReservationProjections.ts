@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -18,8 +19,20 @@ function parseCSVRows(text: string): Record<string, string>[] {
   });
 }
 
-export function parseReservationsCSV(text: string): Record<string, number> {
-  const rows = parseCSVRows(text);
+function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
+  const workbook = XLSX.read(buffer, { type: 'array' });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
+  return rows.map((r) => {
+    const out: Record<string, string> = {};
+    for (const k of Object.keys(r)) {
+      out[k] = String(r[k] ?? '');
+    }
+    return out;
+  });
+}
+
+function countByGrupo(rows: Record<string, string>[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {
     const grupo = (row['Grupo'] ?? '').trim();
@@ -30,16 +43,16 @@ export function parseReservationsCSV(text: string): Record<string, number> {
   return counts;
 }
 
+export function parseReservationsCSV(text: string): Record<string, number> {
+  return countByGrupo(parseCSVRows(text));
+}
+
 export function parseVehicleGroupCSV(text: string): Record<string, number> {
-  const rows = parseCSVRows(text);
-  const counts: Record<string, number> = {};
-  for (const row of rows) {
-    const grupo = (row['Grupo'] ?? '').trim();
-    if (grupo) {
-      counts[grupo] = (counts[grupo] ?? 0) + 1;
-    }
-  }
-  return counts;
+  return countByGrupo(parseCSVRows(text));
+}
+
+export function parseXLSXByGrupo(buffer: ArrayBuffer): Record<string, number> {
+  return countByGrupo(parseXLSXRows(buffer));
 }
 
 export const VEHICLE_CATEGORIES = [
@@ -116,8 +129,7 @@ export function useReservationProjections() {
     );
   };
 
-  const importFromCSV = (csvText: string, type: CsvImportType) => {
-    const counts = type === 'reservations' ? parseReservationsCSV(csvText) : parseVehicleGroupCSV(csvText);
+  const applyImport = (counts: Record<string, number>, type: CsvImportType) => {
     const total = Object.values(counts).reduce((s, v) => s + v, 0);
     if (total === 0) {
       toast.error('Nenhum dado encontrado no arquivo. Verifique se o formato está correto.');
@@ -134,6 +146,16 @@ export function useReservationProjections() {
     );
     const label = type === 'reservations' ? 'Reservas' : type === 'projection' ? 'Projeção de Retorno' : 'Veículos Disponíveis';
     toast.success(`${label} importado com sucesso (${total} registros)`);
+  };
+
+  const importFromCSV = (csvText: string, type: CsvImportType) => {
+    const counts = type === 'reservations' ? parseReservationsCSV(csvText) : parseVehicleGroupCSV(csvText);
+    applyImport(counts, type);
+  };
+
+  const importFromXLSX = (buffer: ArrayBuffer, type: CsvImportType) => {
+    const counts = parseXLSXByGrupo(buffer);
+    applyImport(counts, type);
   };
 
   const saveAll = async () => {
@@ -185,6 +207,7 @@ export function useReservationProjections() {
     updateProjection,
     saveAll,
     importFromCSV,
+    importFromXLSX,
     totalReservations,
     totalEstimated,
     avgNoShow,
