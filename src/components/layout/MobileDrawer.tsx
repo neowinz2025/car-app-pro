@@ -1,4 +1,4 @@
-import { Camera, List, Download, FileText, ClipboardList, AlertTriangle, LogOut, Menu, X, Car } from 'lucide-react';
+import { Camera, List, Download, FileText, ClipboardList, TriangleAlert as AlertTriangle, LogOut, Menu, X, Car, MessageSquareText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +15,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 
-export type TabType = 'scanner' | 'plates' | 'export' | 'reports' | 'shift' | 'damaged';
+export type TabType = 'scanner' | 'plates' | 'export' | 'reports' | 'shift' | 'damaged' | 'bate-reserva';
 
 interface MobileDrawerProps {
   activeTab: TabType;
@@ -32,6 +32,7 @@ const menuItems = [
   { id: 'shift' as const, icon: ClipboardList, label: 'Controle de Turno', color: 'text-purple-500', bg: 'bg-purple-500/10' },
   { id: 'reports' as const, icon: FileText, label: 'Relatórios', color: 'text-orange-500', bg: 'bg-orange-500/10' },
   { id: 'export' as const, icon: Download, label: 'Exportar Dados', color: 'text-teal-500', bg: 'bg-teal-500/10' },
+  { id: 'bate-reserva' as const, icon: MessageSquareText, label: 'Bate Reserva', color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
 ];
 
 export function MobileDrawer({ activeTab, onTabChange, isOpen, onToggle, plateCount }: MobileDrawerProps) {

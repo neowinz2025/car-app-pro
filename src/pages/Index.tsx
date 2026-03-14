@@ -8,6 +8,7 @@ import { ExportView } from '@/components/export/ExportView';
 import { ShiftView } from '@/components/shift/ShiftView';
 import { MonthlyReportsView } from '@/components/reports/MonthlyReportsView';
 import { DamagedVehiclesView } from '@/components/damaged/DamagedVehiclesView';
+import { BateReservaView } from '@/components/reservations/BateReservaView';
 import { InstallPrompt } from '@/components/pwa/InstallPrompt';
 import { usePlates } from '@/hooks/usePlates';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -87,6 +88,12 @@ const Index = () => {
         return <DamagedVehiclesView />;
       case 'shift':
         return <ShiftView />;
+      case 'bate-reserva':
+        return (
+          <div className="flex flex-col h-full px-4 py-4 overflow-y-auto scrollbar-hide pb-24">
+            <BateReservaView />
+          </div>
+        );
       default:
         return null;
     }
