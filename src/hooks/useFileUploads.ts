@@ -27,14 +27,34 @@ const DATE_COL: Record<FileType, string[]> = {
   cq: ['Data Ret', 'Data Ret.'],
 };
 
+function splitCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') {
+      if (inQuotes && line[i + 1] === '"') { current += '"'; i++; }
+      else { inQuotes = !inQuotes; }
+    } else if (ch === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function parseCSVRows(text: string): Record<string, string>[] {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
-  return lines.slice(1).map((line) => {
-    const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+  const headers = splitCSVLine(lines[0]).map((h) => h.trim());
+  return lines.slice(1).filter((l) => l.trim()).map((line) => {
+    const cols = splitCSVLine(line);
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = cols[i] ?? ''; });
+    headers.forEach((h, i) => { row[h] = (cols[i] ?? '').trim(); });
     return row;
   });
 }
@@ -57,7 +77,7 @@ function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
     const out: Record<string, string> = {};
     for (const k of Object.keys(r)) {
       const v = r[k];
-      out[k] = v instanceof Date ? formatExcelDate(v) : String(v ?? '');
+      out[k.trim()] = v instanceof Date ? formatExcelDate(v) : String(v ?? '').trim();
     }
     return out;
   });
@@ -179,42 +199,47 @@ export function useFileUploads() {
           return true;
         }
 
+        const uploadRows = dates.map((date) => ({
+          upload_date: date,
+          file_type: fileType,
+          file_name: file.name,
+          row_count: Object.values(byDate[date]).reduce((s, v) => s + v, 0),
+        }));
+
+        const { data: insertedUploads, error: uploadsError } = await supabase
+          .from('daily_file_uploads' as never)
+          .insert(uploadRows as never)
+          .select('id, upload_date');
+        if (uploadsError) throw uploadsError;
+
+        const uploadIdByDate: Record<string, string> = {};
+        for (const u of (insertedUploads as { id: string; upload_date: string }[]) ?? []) {
+          uploadIdByDate[u.upload_date] = u.id;
+        }
+
+        const allFileRows: { upload_id: string; upload_date: string; file_type: string; category: string; count: number }[] = [];
         let totalVehicles = 0;
         for (const date of dates) {
           const counts = byDate[date];
-          const totalCount = Object.values(counts).reduce((s, v) => s + v, 0);
-          totalVehicles += totalCount;
-
-          const { data: uploadRow, error: uploadError } = await supabase
-            .from('daily_file_uploads' as never)
-            .insert({
-              upload_date: date,
-              file_type: fileType,
-              file_name: file.name,
-              row_count: totalCount,
-            } as never)
-            .select()
-            .single();
-          if (uploadError) throw uploadError;
-          const uploadId = (uploadRow as { id: string }).id;
-
-          const rowsToInsert = Object.entries(counts).map(([category, count]) => ({
-            upload_id: uploadId,
-            upload_date: date,
-            file_type: fileType,
-            category,
-            count,
-          }));
-          if (rowsToInsert.length > 0) {
-            const { error: rowsError } = await supabase
-              .from('daily_file_rows' as never)
-              .insert(rowsToInsert as never);
-            if (rowsError) throw rowsError;
+          const uploadId = uploadIdByDate[date];
+          if (!uploadId) continue;
+          for (const [category, count] of Object.entries(counts)) {
+            allFileRows.push({ upload_id: uploadId, upload_date: date, file_type: fileType, category, count });
+            totalVehicles += count;
           }
         }
 
+        const CHUNK = 500;
+        for (let i = 0; i < allFileRows.length; i += CHUNK) {
+          const chunk = allFileRows.slice(i, i + CHUNK);
+          const { error: rowsError } = await supabase
+            .from('daily_file_rows' as never)
+            .insert(chunk as never);
+          if (rowsError) throw rowsError;
+        }
+
         toast.success(
-          `"${file.name}" importado: ${totalVehicles} veículos distribuídos em ${dates.length} data${dates.length !== 1 ? 's' : ''}`
+          `"${file.name}" importado: ${totalVehicles} veículos em ${dates.length} data${dates.length !== 1 ? 's' : ''}`
         );
         await loadUploads(uploadDate);
         return true;
