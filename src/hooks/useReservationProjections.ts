@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
+import { parsePDFByGrupo } from '@/lib/pdfFleetParser';
 import { toast } from 'sonner';
 
 export type ImportType = 'reservations' | 'projection' | 'available';
@@ -12,9 +13,7 @@ function parseCSVRows(text: string): Record<string, string>[] {
   return lines.slice(1).map((line) => {
     const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
     const row: Record<string, string> = {};
-    headers.forEach((h, i) => {
-      row[h] = cols[i] ?? '';
-    });
+    headers.forEach((h, i) => { row[h] = cols[i] ?? ''; });
     return row;
   });
 }
@@ -25,9 +24,7 @@ function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
   return rows.map((r) => {
     const out: Record<string, string> = {};
-    for (const k of Object.keys(r)) {
-      out[k] = String(r[k] ?? '');
-    }
+    for (const k of Object.keys(r)) out[k] = String(r[k] ?? '');
     return out;
   });
 }
@@ -36,22 +33,20 @@ function countByGrupo(rows: Record<string, string>[]): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const row of rows) {
     const grupo = (row['Grupo'] ?? '').trim();
-    if (grupo) {
-      counts[grupo] = (counts[grupo] ?? 0) + 1;
-    }
+    if (grupo) counts[grupo] = (counts[grupo] ?? 0) + 1;
   }
   return counts;
 }
 
-export function parseFileByGrupo(data: string | ArrayBuffer, isXLSX: boolean): Record<string, number> {
+export function parseSpreadsheetByGrupo(data: string | ArrayBuffer, isXLSX: boolean): Record<string, number> {
   const rows = isXLSX ? parseXLSXRows(data as ArrayBuffer) : parseCSVRows(data as string);
   return countByGrupo(rows);
 }
 
 export const VEHICLE_CATEGORIES = [
-  'AM', 'AT', 'B', 'BS', 'C', 'CA', 'CX', 'CG',
-  'E', 'EA', 'G1', 'G2', 'I', 'IE', 'LX', 'SG',
-  'SM', 'SP', 'SU', 'SV', 'T', 'TT', 'TS', 'J', 'VU', 'VC',
+  'AM','AT','B','BS','C','CA','CX','CG',
+  'E','EA','G1','G2','I','IE','LX','SG',
+  'SM','SP','SU','SV','T','TT','TS','J','VU','VC',
 ];
 
 export interface ReservationProjection {
@@ -125,20 +120,22 @@ export function useReservationProjections() {
     load(selectedDate);
   }, [load, selectedDate]);
 
-  const changeDate = (date: string) => {
-    setSelectedDate(date);
-  };
+  const changeDate = (date: string) => setSelectedDate(date);
 
-  const updateProjection = (category: string, field: 'reservations_count' | 'no_show_rate' | 'available_vehicles' | 'projection', value: number) => {
+  const updateProjection = (
+    category: string,
+    field: 'reservations_count' | 'no_show_rate' | 'available_vehicles' | 'projection',
+    value: number
+  ) => {
     setProjections((prev) =>
       prev.map((p) => (p.category === category ? { ...p, [field]: value } : p))
     );
   };
 
-  const applyImport = (counts: Record<string, number>, type: ImportType, accumulate = false) => {
+  const applyImportCounts = (counts: Record<string, number>, type: ImportType, accumulate: boolean, label: string) => {
     const total = Object.values(counts).reduce((s, v) => s + v, 0);
     if (total === 0) {
-      toast.error('Nenhum dado encontrado no arquivo. Verifique se o formato está correto.');
+      toast.error('Nenhum veículo encontrado no arquivo. Verifique a coluna "Grupo".');
       return;
     }
     setProjections((prev) =>
@@ -146,17 +143,27 @@ export function useReservationProjections() {
         const val = counts[p.category] ?? 0;
         if (type === 'reservations') return { ...p, reservations_count: accumulate ? p.reservations_count + val : val };
         if (type === 'projection') return { ...p, projection: accumulate ? p.projection + val : val };
-        if (type === 'available') return { ...p, available_vehicles: p.available_vehicles + val };
+        if (type === 'available') return { ...p, available_vehicles: accumulate ? p.available_vehicles + val : val };
         return p;
       })
     );
-    const label = type === 'reservations' ? 'Reservas' : type === 'projection' ? 'Projeção de Retorno' : 'Veículos Disponíveis';
-    toast.success(`${label} importado com sucesso (${total} registros)`);
+    toast.success(`${label} importado: ${total} veículos`);
   };
 
-  const importFile = (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate = false) => {
-    const counts = parseFileByGrupo(data, isXLSX);
-    applyImport(counts, type, accumulate);
+  const importSpreadsheet = (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate = false) => {
+    const counts = parseSpreadsheetByGrupo(data, isXLSX);
+    const label = type === 'reservations' ? 'Reservas' : type === 'projection' ? 'Projeção de Retorno' : 'Disponível';
+    applyImportCounts(counts, type, accumulate, label);
+  };
+
+  const importPDF = async (buffer: ArrayBuffer, fileName: string, accumulate: boolean) => {
+    try {
+      const counts = await parsePDFByGrupo(buffer);
+      applyImportCounts(counts, 'available', accumulate, fileName);
+    } catch (err) {
+      console.error('PDF parse error:', err);
+      toast.error(`Erro ao ler PDF: ${fileName}`);
+    }
   };
 
   const saveAll = async () => {
@@ -210,7 +217,8 @@ export function useReservationProjections() {
     changeDate,
     updateProjection,
     saveAll,
-    importFile,
+    importSpreadsheet,
+    importPDF,
     totalReservations,
     totalEstimated,
     avgNoShow,

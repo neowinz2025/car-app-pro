@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown, Upload, CalendarDays, X, FileSpreadsheet } from 'lucide-react';
+import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown, CalendarDays, X, FileSpreadsheet, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,156 +11,128 @@ function formatDateBR(iso: string): string {
   return `${d}/${m}/${y}`;
 }
 
-function parseDateInput(val: string): string {
-  const parts = val.replace(/\D/g, '');
-  if (parts.length === 8) {
-    return `${parts.slice(4)}-${parts.slice(2, 4)}-${parts.slice(0, 2)}`;
-  }
-  return val;
-}
-
 interface ImportedFile {
   name: string;
-  count: number;
 }
 
-function MultiFileImportButton({
-  label,
-  type,
-  onImport,
-}: {
+interface SpreadsheetImportButtonProps {
   label: string;
   type: ImportType;
+  accumulate?: boolean;
   onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean) => void;
-}) {
+}
+
+function SpreadsheetImportButton({ label, type, accumulate = false, onImport }: SpreadsheetImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<ImportedFile[]>([]);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
     if (!selected.length) return;
-
     selected.forEach((file, idx) => {
       const isXLSX = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
       const reader = new FileReader();
-      const accumulate = idx > 0 || files.length > 0 || type === 'available';
+      const acc = accumulate || idx > 0 || files.length > 0;
       reader.onload = (evt) => {
-        const data = evt.target?.result as string | ArrayBuffer;
-        onImport(data, isXLSX, type, accumulate);
-        setFiles((prev) => [...prev, { name: file.name, count: 1 }]);
+        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, type, acc);
+        setFiles((prev) => [...prev, { name: file.name }]);
       };
-      if (isXLSX) {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file, 'UTF-8');
-      }
+      isXLSX ? reader.readAsArrayBuffer(file) : reader.readAsText(file, 'UTF-8');
     });
     e.target.value = '';
   };
 
-  const clearFiles = () => {
-    setFiles([]);
-  };
-
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".csv,.xlsx,.xls"
-          multiple={type === 'available'}
-          className="hidden"
-          onChange={handleFiles}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 text-xs"
-          onClick={() => inputRef.current?.click()}
-        >
-          <Upload className="w-3.5 h-3.5" />
+        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden" onChange={handleFiles} />
+        <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => inputRef.current?.click()}>
+          <FileSpreadsheet className="w-3.5 h-3.5" />
           {label}
         </Button>
         {files.length > 0 && (
-          <button
-            onClick={clearFiles}
-            className="text-muted-foreground hover:text-destructive transition-colors"
-            title="Limpar arquivos importados"
-          >
+          <button onClick={() => setFiles([])} className="text-muted-foreground hover:text-destructive transition-colors" title="Limpar">
             <X className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
-      {files.length > 0 && (
-        <div className="flex flex-col gap-0.5">
-          {files.map((f, i) => (
-            <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground">
-              <FileSpreadsheet className="w-3 h-3 text-green-500 shrink-0" />
-              <span className="truncate max-w-[180px]">{f.name}</span>
-            </div>
-          ))}
+      {files.map((f, i) => (
+        <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
+          <FileSpreadsheet className="w-3 h-3 text-green-500 shrink-0" />
+          <span className="truncate max-w-[180px]">{f.name}</span>
         </div>
-      )}
+      ))}
     </div>
   );
 }
 
-function DateSelector({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (date: string) => void;
-}) {
-  const [inputVal, setInputVal] = useState(formatDateBR(value));
+interface PDFImportButtonProps {
+  label: string;
+  color: string;
+  onImport: (buffer: ArrayBuffer, fileName: string, accumulate: boolean) => Promise<void>;
+  filesImported: ImportedFile[];
+  onFilesChange: (files: ImportedFile[]) => void;
+}
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputVal(e.target.value);
-  };
+function PDFImportButton({ label, color, onImport, filesImported, onFilesChange }: PDFImportButtonProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleBlur = () => {
-    const iso = parseDateInput(inputVal.replace(/\//g, ''));
-    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-      onChange(iso);
-      setInputVal(formatDateBR(iso));
-    } else {
-      setInputVal(formatDateBR(value));
-    }
-  };
-
-  const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(e.target.value);
-    setInputVal(formatDateBR(e.target.value));
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files ?? []);
+    if (!selected.length) return;
+    selected.forEach((file, idx) => {
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        const buffer = evt.target?.result as ArrayBuffer;
+        const acc = idx > 0 || filesImported.length > 0;
+        await onImport(buffer, file.name, acc);
+        onFilesChange([...filesImported, { name: file.name }]);
+      };
+      reader.readAsArrayBuffer(file);
+    });
+    e.target.value = '';
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative flex items-center">
-        <CalendarDays className="absolute left-3 w-4 h-4 text-muted-foreground pointer-events-none" />
-        <Input
-          type="text"
-          placeholder="DD/MM/AAAA"
-          value={inputVal}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          className="pl-9 w-36 text-sm font-medium"
-          maxLength={10}
-        />
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-2">
+        <input ref={inputRef} type="file" accept=".pdf,.csv,.xlsx,.xls" multiple className="hidden" onChange={handleFiles} />
+        <Button
+          variant="outline"
+          size="sm"
+          className={`gap-1.5 text-xs border-${color}-300 text-${color}-700 hover:bg-${color}-50`}
+          onClick={() => inputRef.current?.click()}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          {label}
+        </Button>
+        {filesImported.length > 0 && (
+          <button onClick={() => onFilesChange([])} className="text-muted-foreground hover:text-destructive transition-colors" title="Limpar">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
+      {filesImported.map((f, i) => (
+        <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
+          <FileText className="w-3 h-3 text-blue-500 shrink-0" />
+          <span className="truncate max-w-[180px]">{f.name}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DateSelector({ value, onChange }: { value: string; onChange: (date: string) => void }) {
+  const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value);
+
+  return (
+    <div className="flex items-center gap-2">
+      <CalendarDays className="w-4 h-4 text-muted-foreground" />
       <input
         type="date"
         value={value}
         onChange={handleNativeChange}
-        className="w-8 h-8 opacity-0 absolute"
-        style={{ pointerEvents: 'none' }}
-        tabIndex={-1}
-      />
-      <input
-        type="date"
-        value={value}
-        onChange={handleNativeChange}
-        className="border rounded px-2 h-8 text-sm bg-background cursor-pointer"
+        className="border rounded px-3 h-9 text-sm bg-background cursor-pointer font-medium"
         title="Selecionar data"
       />
     </div>
@@ -176,11 +148,17 @@ export function ReservationProjectionsView() {
     changeDate,
     updateProjection,
     saveAll,
-    importFile,
+    importSpreadsheet,
+    importPDF,
     totalReservations,
     totalEstimated,
     avgNoShow,
   } = useReservationProjections();
+
+  const [diFiles, setDiFiles] = useState<ImportedFile[]>([]);
+  const [lvFiles, setLvFiles] = useState<ImportedFile[]>([]);
+  const [noFiles, setNoFiles] = useState<ImportedFile[]>([]);
+  const [cqFiles, setCqFiles] = useState<ImportedFile[]>([]);
 
   if (loading) {
     return (
@@ -194,6 +172,14 @@ export function ReservationProjectionsView() {
   const totalAvailable = projections.reduce((s, p) => s + p.available_vehicles, 0);
   const totalProjection = projections.reduce((s, p) => s + p.projection, 0);
   const totalBalance = totalAvailable + totalProjection - totalEstimated;
+  const allFilesCount = diFiles.length + lvFiles.length + noFiles.length + cqFiles.length;
+
+  const handleClearNoDI = () => {
+    setDiFiles([]);
+    setLvFiles([]);
+    setNoFiles([]);
+    setCqFiles([]);
+  };
 
   return (
     <div className="space-y-6">
@@ -208,7 +194,7 @@ export function ReservationProjectionsView() {
             </div>
             <div className="h-8 w-px bg-border hidden md:block" />
             <p className="text-xs text-muted-foreground">
-              Dados carregados para <strong>{formatDateBR(selectedDate)}</strong>. Mude a data para consultar ou criar projeções de outros dias.
+              Dados para <strong>{formatDateBR(selectedDate)}</strong>. Altere a data para consultar ou registrar projeções de outros dias.
             </p>
           </div>
         </CardContent>
@@ -272,42 +258,50 @@ export function ReservationProjectionsView() {
         </Card>
       </div>
 
-      <Card className="border border-dashed border-border bg-muted/20">
-        <CardContent className="pt-4 pb-4">
-          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
-            Importar Arquivo (CSV / XLSX)
-          </p>
-          <div className="flex flex-wrap gap-6">
-            <MultiFileImportButton
-              label="Reservas"
-              type="reservations"
-              onImport={importFile}
-            />
-            <MultiFileImportButton
-              label="Projeção de Retorno"
-              type="projection"
-              onImport={importFile}
-            />
-            <MultiFileImportButton
-              label="Disponível (CQ / LV / DI)"
-              type="available"
-              onImport={importFile}
-            />
-          </div>
-          <p className="text-xs text-muted-foreground mt-3">
-            Formatos aceitos: CSV e XLSX/XLS (coluna Grupo). Para CQ+LV+DI, selecione múltiplos arquivos de uma vez — os valores serão somados automaticamente.
-          </p>
-        </CardContent>
-      </Card>
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="border border-dashed border-border bg-muted/20">
+          <CardContent className="pt-4 pb-4">
+            <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+              Reservas e Projeção de Retorno (CSV / XLSX)
+            </p>
+            <div className="flex flex-wrap gap-4">
+              <SpreadsheetImportButton label="Reservas" type="reservations" onImport={importSpreadsheet} />
+              <SpreadsheetImportButton label="Projeção de Retorno" type="projection" onImport={importSpreadsheet} />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-dashed border-blue-200 bg-blue-50/30">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
+                NO / DI — Veículos Disponíveis (PDF ou CSV/XLSX)
+              </p>
+              {allFilesCount > 0 && (
+                <button onClick={handleClearNoDI} className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1">
+                  <X className="w-3 h-3" /> limpar todos
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <PDFImportButton label="DI" color="slate" onImport={importPDF} filesImported={diFiles} onFilesChange={setDiFiles} />
+              <PDFImportButton label="LV" color="slate" onImport={importPDF} filesImported={lvFiles} onFilesChange={setLvFiles} />
+              <PDFImportButton label="NO" color="slate" onImport={importPDF} filesImported={noFiles} onFilesChange={setNoFiles} />
+              <PDFImportButton label="CQ" color="slate" onImport={importPDF} filesImported={cqFiles} onFilesChange={setCqFiles} />
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Cada arquivo é somado automaticamente à coluna NO/DI. Aceita PDF exportado do sistema ou CSV/XLSX com coluna Grupo.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
 
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Categorias de Veículos</CardTitle>
-              <CardDescription>
-                Projeção para {formatDateBR(selectedDate)}
-              </CardDescription>
+              <CardDescription>Projeção para {formatDateBR(selectedDate)}</CardDescription>
             </div>
             <Button onClick={saveAll} disabled={saving} className="gap-2">
               <Save className="w-4 h-4" />
@@ -320,43 +314,43 @@ export function ReservationProjectionsView() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground w-20">
-                    GRUPOS
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground w-16">GRUPOS</th>
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">RESERVAS</th>
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    <span className="flex flex-col items-center leading-tight">
+                      <span>TX NSH</span>
+                      <span className="text-[10px] font-normal text-muted-foreground/70">por grupo</span>
+                    </span>
                   </th>
                   <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
-                    RESERVAS
+                    <span className="flex flex-col items-center leading-tight">
+                      <span>NO / DI</span>
+                      <span className="text-[10px] font-normal text-muted-foreground/70">disponível</span>
+                    </span>
                   </th>
                   <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
-                    TX NSH
+                    <span className="flex flex-col items-center leading-tight">
+                      <span>PROJEÇÃO</span>
+                      <span className="text-[10px] font-normal text-muted-foreground/70">retorno</span>
+                    </span>
                   </th>
                   <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
-                    DI/NO
+                    <span className="flex flex-col items-center leading-tight">
+                      <span>TX</span>
+                      <span className="text-[10px] font-normal text-muted-foreground/70">utilização</span>
+                    </span>
                   </th>
-                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
-                    PROJEÇÃO
-                  </th>
-                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
-                    TX
-                  </th>
-                  <th className="text-center py-3 px-3 font-semibold w-24">
-                    TOTAL
-                  </th>
+                  <th className="text-center py-3 px-3 font-semibold w-20">SALDO</th>
                 </tr>
               </thead>
               <tbody>
                 {projections.map((proj) => {
                   const estimated = computeEstimatedUsage(proj.reservations_count, proj.no_show_rate);
                   const balance = proj.available_vehicles + proj.projection - estimated;
-                  const hasAnyData =
-                    proj.reservations_count > 0 ||
-                    proj.available_vehicles > 0 ||
-                    proj.projection > 0;
+                  const hasAnyData = proj.reservations_count > 0 || proj.available_vehicles > 0 || proj.projection > 0;
 
                   return (
-                    <tr
-                      key={proj.category}
-                      className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={proj.category} className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors">
                       <td className="py-2 px-3 text-center">
                         <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-primary/10 text-primary font-bold text-sm">
                           {proj.category}
@@ -369,11 +363,7 @@ export function ReservationProjectionsView() {
                           value={proj.reservations_count === 0 ? '' : proj.reservations_count}
                           placeholder="0"
                           onChange={(e) =>
-                            updateProjection(
-                              proj.category,
-                              'reservations_count',
-                              Math.max(0, parseInt(e.target.value) || 0)
-                            )
+                            updateProjection(proj.category, 'reservations_count', Math.max(0, parseInt(e.target.value) || 0))
                           }
                           className="w-24 h-8 text-center font-medium mx-auto block"
                         />
@@ -406,13 +396,9 @@ export function ReservationProjectionsView() {
                           value={proj.available_vehicles === 0 ? '' : proj.available_vehicles}
                           placeholder="0"
                           onChange={(e) =>
-                            updateProjection(
-                              proj.category,
-                              'available_vehicles',
-                              Math.max(0, parseInt(e.target.value) || 0)
-                            )
+                            updateProjection(proj.category, 'available_vehicles', Math.max(0, parseInt(e.target.value) || 0))
                           }
-                          className="w-24 h-8 text-center font-medium mx-auto block"
+                          className={`w-24 h-8 text-center font-medium mx-auto block ${proj.available_vehicles > 0 ? 'border-blue-300 bg-blue-50/50' : ''}`}
                         />
                       </td>
                       <td className="py-1.5 px-3">
@@ -422,11 +408,7 @@ export function ReservationProjectionsView() {
                           value={proj.projection === 0 ? '' : proj.projection}
                           placeholder="0"
                           onChange={(e) =>
-                            updateProjection(
-                              proj.category,
-                              'projection',
-                              Math.max(0, parseInt(e.target.value) || 0)
-                            )
+                            updateProjection(proj.category, 'projection', Math.max(0, parseInt(e.target.value) || 0))
                           }
                           className="w-24 h-8 text-center font-medium mx-auto block"
                         />
@@ -470,17 +452,21 @@ export function ReservationProjectionsView() {
                   <td className="py-3 px-3 text-center text-sm">{totalProjection || '—'}</td>
                   <td className="py-3 px-3 text-center text-sm text-green-600">{totalEstimated || '—'}</td>
                   <td className="py-3 px-3 text-center">
-                    <span
-                      className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
-                        totalBalance > 0
-                          ? 'bg-blue-500/10 text-blue-600'
-                          : totalBalance < 0
-                          ? 'bg-red-500/10 text-red-600'
-                          : 'bg-muted text-muted-foreground'
-                      }`}
-                    >
-                      {totalBalance > 0 ? `+${totalBalance}` : totalBalance || '—'}
-                    </span>
+                    {totalAvailable + totalProjection + totalReservations > 0 ? (
+                      <span
+                        className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
+                          totalBalance > 0
+                            ? 'bg-blue-500/10 text-blue-600'
+                            : totalBalance < 0
+                            ? 'bg-red-500/10 text-red-600'
+                            : 'bg-muted text-muted-foreground'
+                        }`}
+                      >
+                        {totalBalance > 0 ? `+${totalBalance}` : totalBalance}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
                   </td>
                 </tr>
               </tfoot>
@@ -489,14 +475,18 @@ export function ReservationProjectionsView() {
         </CardContent>
       </Card>
 
-      <div className="flex items-center gap-6 text-xs text-muted-foreground px-1">
+      <div className="flex flex-wrap items-center gap-6 text-xs text-muted-foreground px-1">
         <div className="flex items-center gap-2">
           <span className="inline-block w-4 h-4 rounded bg-blue-500/20 border border-blue-300" />
-          <span>Sobra de veículos (TOTAL positivo)</span>
+          <span>Saldo positivo (sobra de veículos)</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="inline-block w-4 h-4 rounded bg-red-500/20 border border-red-300" />
-          <span>Falta de veículos (TOTAL negativo)</span>
+          <span>Saldo negativo (falta de veículos)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-4 rounded bg-blue-50 border border-blue-300" />
+          <span>NO/DI preenchido via importação</span>
         </div>
       </div>
     </div>
