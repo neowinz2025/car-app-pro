@@ -36,6 +36,7 @@ export interface DamagedVehicle {
 
 export function useDamagedVehicles() {
   const [loading, setLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   const getAllDamagedVehicles = async (): Promise<DamagedVehicle[]> => {
     try {
@@ -99,11 +100,15 @@ export function useDamagedVehicles() {
 
       const photoUrls: DamagedVehiclePhoto[] = [];
 
+      setUploadProgress({ current: 0, total: photos.length });
+
       for (let i = 0; i < photos.length; i++) {
         const photoMeta = photos[i];
         const file = photoMeta.file;
         const fileExt = file.name.split('.').pop();
         const fileName = `${vehicle.id}/${Date.now()}_${i}.${fileExt}`;
+
+        setUploadProgress({ current: i + 1, total: photos.length });
 
         const { error: uploadError } = await supabase.storage
           .from('damaged-vehicles')
@@ -135,7 +140,8 @@ export function useDamagedVehicles() {
         }
       }
 
-      toast.success('Gerando relatório PDF...', { duration: 2000 });
+      setUploadProgress(null);
+      toast.success('Gerando relatório PDF...');
 
       try {
         let storeData = { name: '', address: '', logo_url: '' };
@@ -222,6 +228,7 @@ export function useDamagedVehicles() {
       return false;
     } finally {
       setLoading(false);
+      setUploadProgress(null);
     }
   };
 
@@ -275,6 +282,7 @@ export function useDamagedVehicles() {
 
   return {
     loading,
+    uploadProgress,
     getAllDamagedVehicles,
     createDamagedVehicle,
     deleteDamagedVehicle,

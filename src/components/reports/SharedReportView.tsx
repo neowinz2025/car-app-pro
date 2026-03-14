@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { FileText, Download, Calendar, User, Store, Droplets, BarChart3, Search } from 'lucide-react';
+import { FileText, Download, Calendar, User, Store, Droplets, ChartBar as BarChart3, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,8 @@ export function SharedReportView() {
   const { token } = useParams<{ token: string }>();
   const [report, setReport] = useState<PhysicalCountReport | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { getReportByToken, loading } = usePhysicalCountReports();
 
   useEffect(() => {
@@ -57,11 +59,17 @@ export function SharedReportView() {
     return plate;
   };
 
-  const getCategorizedPlates = () => {
-    if (!report) return { loja: [], lavaJato: [], both: [], neither: [] };
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setDebouncedSearch(value), 250);
+  };
+
+  const categorizedPlates = useMemo(() => {
+    if (!report) return { loja: [] as PlateRecord[], lavaJato: [] as PlateRecord[], both: [] as PlateRecord[], neither: [] as PlateRecord[] };
 
     const plates = report.plates_data;
-    const normalizedSearch = searchTerm.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    const normalizedSearch = debouncedSearch.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
 
     const filteredPlates = normalizedSearch
       ? plates.filter(p => p.plate.toUpperCase().includes(normalizedSearch))
@@ -73,7 +81,7 @@ export function SharedReportView() {
       both: filteredPlates.filter(p => p.loja && p.lavaJato),
       neither: filteredPlates.filter(p => !p.loja && !p.lavaJato),
     };
-  };
+  }, [report, debouncedSearch]);
 
   if (loading) {
     return (
@@ -104,7 +112,7 @@ export function SharedReportView() {
     );
   }
 
-  const categorized = getCategorizedPlates();
+  const categorized = categorizedPlates;
   const hasResults = categorized.loja.length > 0 || categorized.lavaJato.length > 0 ||
                      categorized.both.length > 0 || categorized.neither.length > 0;
 
@@ -182,7 +190,7 @@ export function SharedReportView() {
                   type="text"
                   placeholder="Buscar placa (ex: ABC1234 ou ABC-1234)"
                   value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  onChange={(e) => handleSearchChange(e.target.value)}
                   className="pl-10 h-12 text-base"
                 />
               </div>

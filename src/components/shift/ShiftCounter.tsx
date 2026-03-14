@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { LucideIcon } from 'lucide-react';
+import { Video as LucideIcon } from 'lucide-react';
 
 interface ShiftCounterProps {
   icon: LucideIcon;
@@ -60,12 +60,12 @@ export function ShiftCounter({
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-500"
+          className="h-11 w-11 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-500 touch-manipulation"
           onClick={onDecrement}
         >
           <Minus className="w-4 h-4" />
         </Button>
-        
+
         {isEditing && onValueChange ? (
           <input
             type="number"
@@ -75,13 +75,13 @@ export function ShiftCounter({
             onBlur={handleInputBlur}
             onKeyDown={handleInputKeyDown}
             autoFocus
-            className="w-12 h-8 bg-yellow-400 rounded-lg text-center font-bold text-black text-sm border-none outline-none focus:ring-2 focus:ring-primary"
+            className="w-12 h-11 bg-yellow-400 rounded-lg text-center font-bold text-black text-sm border-none outline-none focus:ring-2 focus:ring-primary"
           />
         ) : (
-          <div 
+          <div
             className={cn(
-              "w-12 h-8 bg-yellow-400 rounded-lg flex items-center justify-center",
-              onValueChange && "cursor-pointer hover:bg-yellow-300"
+              "w-12 h-11 bg-yellow-400 rounded-lg flex items-center justify-center",
+              onValueChange && "cursor-pointer hover:bg-yellow-300 touch-manipulation"
             )}
             onClick={() => {
               if (onValueChange) {
@@ -95,11 +95,11 @@ export function ShiftCounter({
             </span>
           </div>
         )}
-        
+
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-500"
+          className="h-11 w-11 rounded-lg bg-green-500/20 hover:bg-green-500/30 text-green-500 touch-manipulation"
           onClick={onIncrement}
         >
           <Plus className="w-4 h-4" />

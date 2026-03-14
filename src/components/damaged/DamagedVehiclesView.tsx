@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download, MapPin, Clock } from 'lucide-react';
+import { TriangleAlert as AlertTriangle, Plus, Search, Trash2, Camera, X, FileText, Download, MapPin, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -30,7 +30,7 @@ export function DamagedVehiclesView() {
   const [showPlateSuggestions, setShowPlateSuggestions] = useState(false);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  const { loading, getAllDamagedVehicles, createDamagedVehicle, deleteDamagedVehicle } = useDamagedVehicles();
+  const { loading, uploadProgress, getAllDamagedVehicles, createDamagedVehicle, deleteDamagedVehicle } = useDamagedVehicles();
   const { getStoreId, isAdmin } = useCurrentUser();
   const { plates } = usePlates();
   const { searchPlates } = usePlateCache();
@@ -110,34 +110,34 @@ export function DamagedVehiclesView() {
       return;
     }
 
-    const photosWithMetadata: PhotoMetadata[] = await Promise.all(
-      files.map(async (file) => {
-        const metadata: PhotoMetadata = {
-          file,
-          timestamp: new Date(),
+    let geoCoords: { latitude: number; longitude: number; accuracy: number } | null = null;
+    try {
+      if ('geolocation' in navigator) {
+        const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 30000,
+          });
+        });
+        geoCoords = {
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracy: position.coords.accuracy,
         };
+      }
+    } catch {
+      // Location not available — proceed without GPS
+    }
 
-        try {
-          if ('geolocation' in navigator) {
-            const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
-                enableHighAccuracy: true,
-                timeout: 5000,
-                maximumAge: 0,
-              });
-            });
-
-            metadata.latitude = position.coords.latitude;
-            metadata.longitude = position.coords.longitude;
-            metadata.accuracy = position.coords.accuracy;
-          }
-        } catch (error) {
-          console.log('Location not available for photo:', error);
-        }
-
-        return metadata;
-      })
-    );
+    const now = new Date();
+    const photosWithMetadata: PhotoMetadata[] = files.map((file) => ({
+      file,
+      timestamp: now,
+      latitude: geoCoords?.latitude,
+      longitude: geoCoords?.longitude,
+      accuracy: geoCoords?.accuracy,
+    }));
 
     setSelectedFiles(prev => [...prev, ...photosWithMetadata]);
 
@@ -156,13 +156,22 @@ export function DamagedVehiclesView() {
   };
 
   const handleSubmit = async () => {
-    if (!selectedPlate.trim()) {
+    const normalizedPlate = selectedPlate.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const oldFormat = /^[A-Z]{3}[0-9]{4}$/;
+    const mercosulFormat = /^[A-Z]{3}[0-9]{1}[A-Z]{1}[0-9]{2}$/;
+
+    if (!normalizedPlate) {
       toast.error('Digite a placa do veículo');
       return;
     }
 
-    if (!createdBy.trim()) {
-      toast.error('Digite seu nome');
+    if (!oldFormat.test(normalizedPlate) && !mercosulFormat.test(normalizedPlate)) {
+      toast.error('Placa inválida. Use o formato ABC1234 ou ABC1D23');
+      return;
+    }
+
+    if (!createdBy.trim() || createdBy.trim().length < 2) {
+      toast.error('Digite seu nome completo');
       return;
     }
 
@@ -359,20 +368,21 @@ export function DamagedVehiclesView() {
                 {previewUrls.length > 0 && (
                   <div className="grid grid-cols-2 gap-2 mt-3">
                     {previewUrls.map((url, index) => (
-                      <div key={index} className="relative group">
+                      <div key={index} className="relative">
                         <img
                           src={url}
                           alt={`Preview ${index + 1}`}
-                          className="w-full h-32 object-cover rounded-lg"
+                          className="w-full h-36 object-cover rounded-lg"
                         />
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
-                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 shadow-md touch-manipulation"
+                          aria-label={`Remover foto ${index + 1}`}
                         >
                           <X className="w-4 h-4" />
                         </button>
-                        <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                        <div className="absolute bottom-1 left-1 bg-black/60 text-white text-xs px-2 py-1 rounded">
                           Foto {index + 1}
                         </div>
                       </div>
@@ -381,13 +391,31 @@ export function DamagedVehiclesView() {
                 )}
               </div>
 
+              {uploadProgress && (
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>Enviando fotos...</span>
+                    <span>{uploadProgress.current} de {uploadProgress.total}</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(uploadProgress.current / uploadProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <Button
                 onClick={handleSubmit}
                 disabled={loading || selectedFiles.length < 2 || !selectedPlate || !createdBy}
                 className="w-full h-14 text-lg font-bold rounded-2xl"
                 size="lg"
               >
-                {loading ? 'Salvando...' : 'Salvar Registro de Avaria'}
+                {loading
+                  ? uploadProgress
+                    ? `Enviando fotos (${uploadProgress.current}/${uploadProgress.total})...`
+                    : 'Gerando PDF...'
+                  : 'Salvar Registro de Avaria'}
               </Button>
             </div>
           </DialogContent>
