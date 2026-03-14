@@ -51,13 +51,13 @@ export default function ProjectionDashboard() {
 
   useEffect(() => {
     if (!token) { setValid(false); return; }
-    supabase
-      .from('projection_share_tokens')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.from('projection_share_tokens' as any) as any)
       .select('id')
       .eq('token', token)
       .eq('active', true)
       .maybeSingle()
-      .then(({ data }) => setValid(!!data));
+      .then(({ data }: { data: unknown }) => setValid(!!data));
   }, [token]);
 
   useEffect(() => {

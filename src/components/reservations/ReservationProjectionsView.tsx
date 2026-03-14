@@ -12,6 +12,9 @@ import {
   Share2,
   Copy,
   Link,
+  Percent,
+  CheckCheck,
+  Trash2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -170,6 +173,7 @@ export function ReservationProjectionsView() {
     selectedDate,
     changeDate,
     updateProjection,
+    setGlobalNoShowRate,
     saveAll,
     importSpreadsheet,
 
@@ -178,7 +182,8 @@ export function ReservationProjectionsView() {
     avgNoShow,
   } = useReservationProjections();
 
-  const { generateShareLink, copyShareLink, generating, shareToken } = useProjectionShare();
+  const { generateShareLink, copyShareLink, revokeShareLink, generating, shareToken } = useProjectionShare();
+  const [globalNoShow, setGlobalNoShowInput] = useState<string>('');
 
   const [diFiles, setDiFiles] = useState<ImportedFile[]>([]);
   const [lvFiles, setLvFiles] = useState<ImportedFile[]>([]);
@@ -223,36 +228,47 @@ export function ReservationProjectionsView() {
                 Dados para <strong>{formatDateBR(selectedDate)}</strong>. Importações de arquivo são filtradas automaticamente por essa data.
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {shareToken ? (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                    onClick={() => copyShareLink(shareToken)}
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copiar link
+                  </Button>
+                  <button
+                    onClick={revokeShareLink}
+                    className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1 transition-colors"
+                    title="Revogar link"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                    Revogar
+                  </button>
+                </>
+              ) : (
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
-                  onClick={() => copyShareLink(shareToken)}
+                  className="gap-1.5 text-xs"
+                  onClick={() => generateShareLink()}
+                  disabled={generating}
                 >
-                  <Copy className="w-3.5 h-3.5" />
-                  Copiar link
+                  {generating ? (
+                    <div className="w-3.5 h-3.5 animate-spin rounded-full border-b border-current" />
+                  ) : (
+                    <Share2 className="w-3.5 h-3.5" />
+                  )}
+                  Compartilhar
                 </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs"
-                onClick={() => generateShareLink()}
-                disabled={generating}
-              >
-                {generating ? (
-                  <div className="w-3.5 h-3.5 animate-spin rounded-full border-b border-current" />
-                ) : (
-                  <Share2 className="w-3.5 h-3.5" />
-                )}
-                {shareToken ? 'Novo link' : 'Compartilhar'}
-              </Button>
+              )}
               {shareToken && (
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Link className="w-3 h-3" />
-                  <span className="font-mono truncate max-w-[120px]">/projecao/{shareToken.slice(0, 8)}…</span>
+                  <Link className="w-3 h-3 text-green-600" />
+                  <span className="font-mono truncate max-w-[130px] text-green-700">/projecao/{shareToken.slice(0, 8)}…</span>
                 </div>
               )}
             </div>
@@ -370,15 +386,44 @@ export function ReservationProjectionsView() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle>Categorias de Veículos</CardTitle>
               <CardDescription>Projeção para {formatDateBR(selectedDate)}</CardDescription>
             </div>
-            <Button onClick={saveAll} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {saving ? 'Salvando...' : 'Salvar'}
-            </Button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5">
+                <Percent className="w-3.5 h-3.5 text-orange-500 shrink-0" />
+                <span className="text-xs font-medium text-orange-700 whitespace-nowrap">No-Show global</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step={0.5}
+                  value={globalNoShow}
+                  placeholder="ex: 15"
+                  onChange={(e) => setGlobalNoShowInput(e.target.value)}
+                  className="w-16 h-7 text-center text-xs border-orange-300 bg-white"
+                />
+                <span className="text-xs text-orange-600">%</span>
+                <button
+                  onClick={() => {
+                    const rate = Math.min(100, Math.max(0, parseFloat(globalNoShow) || 0));
+                    setGlobalNoShowRate(rate);
+                    setGlobalNoShowInput('');
+                  }}
+                  className="flex items-center gap-1 text-xs text-orange-700 hover:text-orange-900 font-semibold transition-colors"
+                  title="Aplicar a todos os grupos"
+                >
+                  <CheckCheck className="w-3.5 h-3.5" />
+                  Aplicar
+                </button>
+              </div>
+              <Button onClick={saveAll} disabled={saving} className="gap-2">
+                <Save className="w-4 h-4" />
+                {saving ? 'Salvando...' : 'Salvar'}
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">

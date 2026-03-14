@@ -121,6 +121,10 @@ export function useReservationProjections() {
     );
   };
 
+  const setGlobalNoShowRate = (rate: number) => {
+    setProjections((prev) => prev.map((p) => ({ ...p, no_show_rate: rate })));
+  };
+
   const applyImportCounts = (
     counts: Record<string, number>,
     type: ImportType,
@@ -242,6 +246,7 @@ export function useReservationProjections() {
     selectedDate,
     changeDate,
     updateProjection,
+    setGlobalNoShowRate,
     saveAll,
     importSpreadsheet,
     importPDF,
