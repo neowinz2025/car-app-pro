@@ -2,6 +2,46 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+export type CsvImportType = 'reservations' | 'projection' | 'available';
+
+function parseCSVRows(text: string): Record<string, string>[] {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = lines[0].split(',').map((h) => h.trim().replace(/^"|"$/g, ''));
+  return lines.slice(1).map((line) => {
+    const cols = line.split(',').map((c) => c.trim().replace(/^"|"$/g, ''));
+    const row: Record<string, string> = {};
+    headers.forEach((h, i) => {
+      row[h] = cols[i] ?? '';
+    });
+    return row;
+  });
+}
+
+export function parseReservationsCSV(text: string): Record<string, number> {
+  const rows = parseCSVRows(text);
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    const grupo = (row['Grupo'] ?? '').trim();
+    if (grupo) {
+      counts[grupo] = (counts[grupo] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
+export function parseVehicleGroupCSV(text: string): Record<string, number> {
+  const rows = parseCSVRows(text);
+  const counts: Record<string, number> = {};
+  for (const row of rows) {
+    const grupo = (row['Grupo'] ?? '').trim();
+    if (grupo) {
+      counts[grupo] = (counts[grupo] ?? 0) + 1;
+    }
+  }
+  return counts;
+}
+
 export const VEHICLE_CATEGORIES = [
   'AM', 'AT', 'B', 'BS', 'C', 'CA', 'CX', 'CG',
   'E', 'EA', 'G1', 'G2', 'I', 'IE', 'LX', 'SG',
@@ -76,6 +116,26 @@ export function useReservationProjections() {
     );
   };
 
+  const importFromCSV = (csvText: string, type: CsvImportType) => {
+    const counts = type === 'reservations' ? parseReservationsCSV(csvText) : parseVehicleGroupCSV(csvText);
+    const total = Object.values(counts).reduce((s, v) => s + v, 0);
+    if (total === 0) {
+      toast.error('Nenhum dado encontrado no arquivo. Verifique se o formato está correto.');
+      return;
+    }
+    setProjections((prev) =>
+      prev.map((p) => {
+        const val = counts[p.category] ?? 0;
+        if (type === 'reservations') return { ...p, reservations_count: val };
+        if (type === 'projection') return { ...p, projection: val };
+        if (type === 'available') return { ...p, available_vehicles: p.available_vehicles + val };
+        return p;
+      })
+    );
+    const label = type === 'reservations' ? 'Reservas' : type === 'projection' ? 'Projeção de Retorno' : 'Veículos Disponíveis';
+    toast.success(`${label} importado com sucesso (${total} registros)`);
+  };
+
   const saveAll = async () => {
     try {
       setSaving(true);
@@ -124,6 +184,7 @@ export function useReservationProjections() {
     saving,
     updateProjection,
     saveAll,
+    importFromCSV,
     totalReservations,
     totalEstimated,
     avgNoShow,

@@ -1,8 +1,48 @@
-import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown } from 'lucide-react';
+import { useRef } from 'react';
+import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useReservationProjections, computeEstimatedUsage } from '@/hooks/useReservationProjections';
+import { useReservationProjections, computeEstimatedUsage, CsvImportType } from '@/hooks/useReservationProjections';
+
+function CsvImportButton({
+  label,
+  type,
+  onImport,
+}: {
+  label: string;
+  type: CsvImportType;
+  onImport: (text: string, type: CsvImportType) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string;
+      onImport(text, type);
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={handleFile} />
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 text-xs"
+        onClick={() => inputRef.current?.click()}
+      >
+        <Upload className="w-3.5 h-3.5" />
+        {label}
+      </Button>
+    </>
+  );
+}
 
 export function ReservationProjectionsView() {
   const {
@@ -11,6 +51,7 @@ export function ReservationProjectionsView() {
     saving,
     updateProjection,
     saveAll,
+    importFromCSV,
     totalReservations,
     totalEstimated,
     avgNoShow,
@@ -88,6 +129,34 @@ export function ReservationProjectionsView() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border border-dashed border-border bg-muted/20">
+        <CardContent className="pt-4 pb-4">
+          <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
+            Importar CSV
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <CsvImportButton
+              label="Reservas"
+              type="reservations"
+              onImport={importFromCSV}
+            />
+            <CsvImportButton
+              label="Projeção de Retorno"
+              type="projection"
+              onImport={importFromCSV}
+            />
+            <CsvImportButton
+              label="Disponível (CQ/LV/DI)"
+              type="available"
+              onImport={importFromCSV}
+            />
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Formatos aceitos: Reservations (coluna Grupo), ProjecaoRetorno (coluna Grupo), CQ/LV/DI exportados (coluna Grupo). Para combinar CQ+LV+DI, importe um por vez — os valores serão somados.
+          </p>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="pb-3">
