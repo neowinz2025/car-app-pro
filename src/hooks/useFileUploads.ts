@@ -18,13 +18,13 @@ export interface UploadedFile {
   row_count: number;
 }
 
-const DATE_COL: Record<FileType, string | null> = {
-  reservations: 'Data Ret.',
-  projection: 'Data Dev.',
-  di: 'Data Ret.',
-  lv: 'Data Ret.',
-  no: 'Data Ret.',
-  cq: 'Data Ret.',
+const DATE_COL: Record<FileType, string[]> = {
+  reservations: ['Data Ret.', 'Data Ret'],
+  projection: ['Data Dev.', 'Data Dev'],
+  di: ['Data Ret', 'Data Ret.'],
+  lv: ['Data Ret', 'Data Ret.'],
+  no: ['Data Ret', 'Data Ret.'],
+  cq: ['Data Ret', 'Data Ret.'],
 };
 
 function parseCSVRows(text: string): Record<string, string>[] {
@@ -63,6 +63,15 @@ function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
   });
 }
 
+function detectDateColumn(rows: Record<string, string>[], candidates: string[]): string {
+  if (rows.length === 0) return candidates[0] ?? '';
+  const firstRow = rows[0];
+  for (const col of candidates) {
+    if (col in firstRow) return col;
+  }
+  return candidates[0] ?? '';
+}
+
 async function extractCountsByAllDates(
   data: string | ArrayBuffer,
   isPDF: boolean,
@@ -75,8 +84,9 @@ async function extractCountsByAllDates(
   const rows = isXLSX
     ? parseXLSXRows(data as ArrayBuffer)
     : parseCSVRows(data as string);
-  const dateCol = DATE_COL[fileType];
-  return parseSpreadsheetRowsByAllDates(rows, dateCol ?? '');
+  const dateCandidates = DATE_COL[fileType];
+  const dateCol = detectDateColumn(rows, dateCandidates);
+  return parseSpreadsheetRowsByAllDates(rows, dateCol);
 }
 
 export function useFileUploads() {

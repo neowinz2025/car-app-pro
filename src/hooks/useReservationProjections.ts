@@ -140,11 +140,14 @@ export function useReservationProjections() {
           const available_vehicles =
             fromFileAvailable > 0 ? fromFileAvailable : (existing.available_vehicles ?? 0);
 
+          const savedRate = Number(existing.no_show_rate);
+          const no_show_rate = savedRate > 0 ? savedRate : globalRate;
+
           return {
             id: existing.id,
             category: existing.category,
             reservations_count,
-            no_show_rate: Number(existing.no_show_rate),
+            no_show_rate,
             available_vehicles,
             projection,
             projection_date: existing.projection_date ?? date,
@@ -225,23 +228,6 @@ export function useReservationProjections() {
     });
   };
 
-  const setGlobalNoShowRate = async (rate: number) => {
-    markDirty();
-    setGlobalNoShowRateState(rate);
-    setProjections((prev) => {
-      const next = prev.map((p) => ({ ...p, no_show_rate: rate }));
-      projectionsRef.current = next;
-      return next;
-    });
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (supabase.from('projection_settings' as any) as any)
-        .upsert({ key: GLOBAL_NOSHOW_KEY, value: String(rate), updated_at: new Date().toISOString() }, { onConflict: 'key' });
-    } catch (err) {
-      console.error('Error saving global no-show rate:', err);
-    }
-  };
-
   const buildUpsertPayload = (rows: ReservationProjection[], date: string) =>
     rows.map((p) => ({
       ...(p.id ? { id: p.id } : {}),
@@ -253,6 +239,26 @@ export function useReservationProjections() {
       projection_date: date,
       updated_at: new Date().toISOString(),
     }));
+
+  const setGlobalNoShowRate = async (rate: number) => {
+    setGlobalNoShowRateState(rate);
+    const updated = projectionsRef.current.map((p) => ({ ...p, no_show_rate: rate }));
+    setProjections(updated);
+    projectionsRef.current = updated;
+    isDirty.current = false;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('projection_settings' as any) as any)
+        .upsert({ key: GLOBAL_NOSHOW_KEY, value: String(rate), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+      await supabase
+        .from('reservation_projections')
+        .upsert(buildUpsertPayload(updated, selectedDateRef.current), { onConflict: 'category,projection_date' });
+      toast.success(`No-Show global de ${rate}% aplicado e salvo`);
+    } catch (err) {
+      console.error('Error saving global no-show rate:', err);
+      toast.error('Erro ao salvar no-show global');
+    }
+  };
 
   const saveAll = async () => {
     try {
