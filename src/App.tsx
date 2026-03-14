@@ -9,6 +9,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserLogin from "./pages/UserLogin";
 import { SharedReportView } from "@/components/reports/SharedReportView";
+import ProjectionDashboard from "./pages/ProjectionDashboard";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/login" element={<UserLogin />} />
           <Route path="/relatorio/:token" element={<SharedReportView />} />
+          <Route path="/projecao/:token" element={<ProjectionDashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

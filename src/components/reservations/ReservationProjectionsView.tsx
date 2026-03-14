@@ -9,11 +9,15 @@ import {
   X,
   FileSpreadsheet,
   Filter,
+  Share2,
+  Copy,
+  Link,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useReservationProjections, computeEstimatedUsage, ImportType } from '@/hooks/useReservationProjections';
+import { useProjectionShare } from '@/hooks/useProjectionShare';
 
 function formatDateBR(iso: string): string {
   if (!iso) return '';
@@ -174,6 +178,8 @@ export function ReservationProjectionsView() {
     avgNoShow,
   } = useReservationProjections();
 
+  const { generateShareLink, copyShareLink, generating, shareToken } = useProjectionShare();
+
   const [diFiles, setDiFiles] = useState<ImportedFile[]>([]);
   const [lvFiles, setLvFiles] = useState<ImportedFile[]>([]);
   const [noFiles, setNoFiles] = useState<ImportedFile[]>([]);
@@ -204,17 +210,52 @@ export function ReservationProjectionsView() {
     <div className="space-y-6">
       <Card className="border border-border bg-muted/10">
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-wrap items-center gap-4">
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
-                Data da Projeção
+          <div className="flex flex-wrap items-center gap-4 justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <div>
+                <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
+                  Data da Projeção
+                </p>
+                <DateSelector value={selectedDate} onChange={changeDate} />
+              </div>
+              <div className="h-8 w-px bg-border hidden md:block" />
+              <p className="text-xs text-muted-foreground">
+                Dados para <strong>{formatDateBR(selectedDate)}</strong>. Importações de arquivo são filtradas automaticamente por essa data.
               </p>
-              <DateSelector value={selectedDate} onChange={changeDate} />
             </div>
-            <div className="h-8 w-px bg-border hidden md:block" />
-            <p className="text-xs text-muted-foreground">
-              Dados para <strong>{formatDateBR(selectedDate)}</strong>. Importações de arquivo são filtradas automaticamente por essa data.
-            </p>
+            <div className="flex items-center gap-2">
+              {shareToken ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs border-green-300 text-green-700 hover:bg-green-50"
+                  onClick={() => copyShareLink(shareToken)}
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copiar link
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => generateShareLink()}
+                disabled={generating}
+              >
+                {generating ? (
+                  <div className="w-3.5 h-3.5 animate-spin rounded-full border-b border-current" />
+                ) : (
+                  <Share2 className="w-3.5 h-3.5" />
+                )}
+                {shareToken ? 'Novo link' : 'Compartilhar'}
+              </Button>
+              {shareToken && (
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Link className="w-3 h-3" />
+                  <span className="font-mono truncate max-w-[120px]">/projecao/{shareToken.slice(0, 8)}…</span>
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
