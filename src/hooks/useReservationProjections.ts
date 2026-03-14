@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { parsePDFByGrupo, parseSpreadsheetRowsByDate } from '@/lib/pdfFleetParser';
@@ -56,20 +56,27 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+function emptyProjections(date: string): ReservationProjection[] {
+  return VEHICLE_CATEGORIES.map((cat) => ({
+    category: cat,
+    reservations_count: 0,
+    no_show_rate: 0,
+    available_vehicles: 0,
+    projection: 0,
+    projection_date: date,
+  }));
+}
+
 export function useReservationProjections() {
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
+  const selectedDateRef = useRef<string>(todayISO());
   const [projections, setProjections] = useState<ReservationProjection[]>(() =>
-    VEHICLE_CATEGORIES.map((cat) => ({
-      category: cat,
-      reservations_count: 0,
-      no_show_rate: 0,
-      available_vehicles: 0,
-      projection: 0,
-      projection_date: todayISO(),
-    }))
+    emptyProjections(todayISO())
   );
+  const projectionsRef = useRef<ReservationProjection[]>(emptyProjections(todayISO()));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const isDirty = useRef(false);
 
   const load = useCallback(async (date: string) => {
     try {
@@ -81,22 +88,23 @@ export function useReservationProjections() {
 
       if (error) throw error;
 
-      setProjections(
-        VEHICLE_CATEGORIES.map((cat) => {
-          const existing = data?.find((r) => r.category === cat);
-          return existing
-            ? {
-                id: existing.id,
-                category: existing.category,
-                reservations_count: existing.reservations_count,
-                no_show_rate: Number(existing.no_show_rate),
-                available_vehicles: existing.available_vehicles ?? 0,
-                projection: existing.projection ?? 0,
-                projection_date: existing.projection_date ?? date,
-              }
-            : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0, projection_date: date };
-        })
-      );
+      const loaded = VEHICLE_CATEGORIES.map((cat) => {
+        const existing = data?.find((r) => r.category === cat);
+        return existing
+          ? {
+              id: existing.id,
+              category: existing.category,
+              reservations_count: existing.reservations_count,
+              no_show_rate: Number(existing.no_show_rate),
+              available_vehicles: existing.available_vehicles ?? 0,
+              projection: existing.projection ?? 0,
+              projection_date: existing.projection_date ?? date,
+            }
+          : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0, projection_date: date };
+      });
+      setProjections(loaded);
+      projectionsRef.current = loaded;
+      isDirty.current = false;
     } catch (err) {
       console.error('Error loading reservation projections:', err);
       toast.error('Erro ao carregar projeções');
@@ -109,20 +117,61 @@ export function useReservationProjections() {
     load(selectedDate);
   }, [load, selectedDate]);
 
-  const changeDate = (date: string) => setSelectedDate(date);
+  const changeDate = useCallback(async (date: string) => {
+    if (isDirty.current) {
+      const confirmed = window.confirm(
+        'Você tem dados não salvos. Deseja salvar antes de mudar a data?'
+      );
+      if (confirmed) {
+        try {
+          const { error } = await supabase
+            .from('reservation_projections')
+            .upsert(
+              projectionsRef.current.map((p) => ({
+                ...(p.id ? { id: p.id } : {}),
+                category: p.category,
+                reservations_count: p.reservations_count,
+                no_show_rate: p.no_show_rate,
+                available_vehicles: p.available_vehicles,
+                projection: p.projection,
+                projection_date: selectedDateRef.current,
+                updated_at: new Date().toISOString(),
+              })),
+              { onConflict: 'category,projection_date' }
+            );
+          if (!error) {
+            isDirty.current = false;
+            toast.success('Dados salvos automaticamente');
+          }
+        } catch { /* ignore, user still navigates */ }
+      }
+    }
+    selectedDateRef.current = date;
+    setSelectedDate(date);
+  }, []);
+
+  const markDirty = () => { isDirty.current = true; };
 
   const updateProjection = (
     category: string,
     field: 'reservations_count' | 'no_show_rate' | 'available_vehicles' | 'projection',
     value: number
   ) => {
-    setProjections((prev) =>
-      prev.map((p) => (p.category === category ? { ...p, [field]: value } : p))
-    );
+    markDirty();
+    setProjections((prev) => {
+      const next = prev.map((p) => (p.category === category ? { ...p, [field]: value } : p));
+      projectionsRef.current = next;
+      return next;
+    });
   };
 
   const setGlobalNoShowRate = (rate: number) => {
-    setProjections((prev) => prev.map((p) => ({ ...p, no_show_rate: rate })));
+    markDirty();
+    setProjections((prev) => {
+      const next = prev.map((p) => ({ ...p, no_show_rate: rate }));
+      projectionsRef.current = next;
+      return next;
+    });
   };
 
   const applyImportCounts = (
@@ -141,15 +190,18 @@ export function useReservationProjections() {
       }
       return;
     }
-    setProjections((prev) =>
-      prev.map((p) => {
+    markDirty();
+    setProjections((prev) => {
+      const next = prev.map((p) => {
         const val = counts[p.category] ?? 0;
         if (type === 'reservations') return { ...p, reservations_count: accumulate ? p.reservations_count + val : val };
         if (type === 'projection') return { ...p, projection: accumulate ? p.projection + val : val };
         if (type === 'available') return { ...p, available_vehicles: accumulate ? p.available_vehicles + val : val };
         return p;
-      })
-    );
+      });
+      projectionsRef.current = next;
+      return next;
+    });
     const dateLabel = filteredDate
       ? ` (${filteredDate.split('-').reverse().join('/')})`
       : '';
@@ -196,28 +248,30 @@ export function useReservationProjections() {
     }
   };
 
+  const buildUpsertPayload = (rows: ReservationProjection[], date: string) =>
+    rows.map((p) => ({
+      ...(p.id ? { id: p.id } : {}),
+      category: p.category,
+      reservations_count: p.reservations_count,
+      no_show_rate: p.no_show_rate,
+      available_vehicles: p.available_vehicles,
+      projection: p.projection,
+      projection_date: date,
+      updated_at: new Date().toISOString(),
+    }));
+
   const saveAll = async () => {
     try {
       setSaving(true);
-      const toUpsert = projections.map((p) => ({
-        ...(p.id ? { id: p.id } : {}),
-        category: p.category,
-        reservations_count: p.reservations_count,
-        no_show_rate: p.no_show_rate,
-        available_vehicles: p.available_vehicles,
-        projection: p.projection,
-        projection_date: selectedDate,
-        updated_at: new Date().toISOString(),
-      }));
-
       const { error } = await supabase
         .from('reservation_projections')
-        .upsert(toUpsert, { onConflict: 'category,projection_date' });
+        .upsert(buildUpsertPayload(projectionsRef.current, selectedDateRef.current), { onConflict: 'category,projection_date' });
 
       if (error) throw error;
 
+      isDirty.current = false;
       toast.success('Projeções salvas com sucesso');
-      await load(selectedDate);
+      await load(selectedDateRef.current);
     } catch (err) {
       console.error('Error saving projections:', err);
       toast.error('Erro ao salvar projeções');
