@@ -174,6 +174,7 @@ export function ReservationProjectionsView() {
     changeDate,
     updateProjection,
     setGlobalNoShowRate,
+    globalNoShowRate,
     saveAll,
     importSpreadsheet,
 
@@ -394,14 +395,19 @@ export function ReservationProjectionsView() {
             <div className="flex items-center gap-3 flex-wrap">
               <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-1.5">
                 <Percent className="w-3.5 h-3.5 text-orange-500 shrink-0" />
-                <span className="text-xs font-medium text-orange-700 whitespace-nowrap">No-Show global</span>
+                <div className="flex flex-col">
+                  <span className="text-xs font-medium text-orange-700 whitespace-nowrap">No-Show global</span>
+                  {globalNoShowRate > 0 && (
+                    <span className="text-[10px] text-orange-500">atual: {globalNoShowRate}%</span>
+                  )}
+                </div>
                 <Input
                   type="number"
                   min={0}
                   max={100}
                   step={0.5}
                   value={globalNoShow}
-                  placeholder="ex: 15"
+                  placeholder={globalNoShowRate > 0 ? String(globalNoShowRate) : 'ex: 15'}
                   onChange={(e) => setGlobalNoShowInput(e.target.value)}
                   className="w-16 h-7 text-center text-xs border-orange-300 bg-white"
                 />
@@ -413,7 +419,7 @@ export function ReservationProjectionsView() {
                     setGlobalNoShowInput('');
                   }}
                   className="flex items-center gap-1 text-xs text-orange-700 hover:text-orange-900 font-semibold transition-colors"
-                  title="Aplicar a todos os grupos"
+                  title="Aplicar a todos os grupos e salvar como padrão"
                 >
                   <CheckCheck className="w-3.5 h-3.5" />
                   Aplicar

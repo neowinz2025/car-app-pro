@@ -67,6 +67,8 @@ function emptyProjections(date: string): ReservationProjection[] {
   }));
 }
 
+const GLOBAL_NOSHOW_KEY = 'global_no_show_rate';
+
 export function useReservationProjections() {
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
   const selectedDateRef = useRef<string>(todayISO());
@@ -76,31 +78,51 @@ export function useReservationProjections() {
   const projectionsRef = useRef<ReservationProjection[]>(emptyProjections(todayISO()));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [globalNoShowRate, setGlobalNoShowRateState] = useState<number>(0);
   const isDirty = useRef(false);
+
+  const loadGlobalNoShowRate = useCallback(async (): Promise<number> => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data } = await (supabase.from('projection_settings' as any) as any)
+      .select('value')
+      .eq('key', GLOBAL_NOSHOW_KEY)
+      .maybeSingle();
+    const rate = data ? parseFloat((data as { value: string }).value) || 0 : 0;
+    setGlobalNoShowRateState(rate);
+    return rate;
+  }, []);
 
   const load = useCallback(async (date: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('reservation_projections')
-        .select('*')
-        .eq('projection_date', date);
+      const [{ data, error }, globalRate] = await Promise.all([
+        supabase.from('reservation_projections').select('*').eq('projection_date', date),
+        loadGlobalNoShowRate(),
+      ]);
 
       if (error) throw error;
 
       const loaded = VEHICLE_CATEGORIES.map((cat) => {
         const existing = data?.find((r) => r.category === cat);
-        return existing
-          ? {
-              id: existing.id,
-              category: existing.category,
-              reservations_count: existing.reservations_count,
-              no_show_rate: Number(existing.no_show_rate),
-              available_vehicles: existing.available_vehicles ?? 0,
-              projection: existing.projection ?? 0,
-              projection_date: existing.projection_date ?? date,
-            }
-          : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0, projection_date: date };
+        if (existing) {
+          return {
+            id: existing.id,
+            category: existing.category,
+            reservations_count: existing.reservations_count,
+            no_show_rate: Number(existing.no_show_rate),
+            available_vehicles: existing.available_vehicles ?? 0,
+            projection: existing.projection ?? 0,
+            projection_date: existing.projection_date ?? date,
+          };
+        }
+        return {
+          category: cat,
+          reservations_count: 0,
+          no_show_rate: globalRate,
+          available_vehicles: 0,
+          projection: 0,
+          projection_date: date,
+        };
       });
       setProjections(loaded);
       projectionsRef.current = loaded;
@@ -111,7 +133,7 @@ export function useReservationProjections() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loadGlobalNoShowRate]);
 
   useEffect(() => {
     load(selectedDate);
@@ -165,13 +187,21 @@ export function useReservationProjections() {
     });
   };
 
-  const setGlobalNoShowRate = (rate: number) => {
+  const setGlobalNoShowRate = async (rate: number) => {
     markDirty();
+    setGlobalNoShowRateState(rate);
     setProjections((prev) => {
       const next = prev.map((p) => ({ ...p, no_show_rate: rate }));
       projectionsRef.current = next;
       return next;
     });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('projection_settings' as any) as any)
+        .upsert({ key: GLOBAL_NOSHOW_KEY, value: String(rate), updated_at: new Date().toISOString() }, { onConflict: 'key' });
+    } catch (err) {
+      console.error('Error saving global no-show rate:', err);
+    }
   };
 
   const applyImportCounts = (
@@ -301,6 +331,7 @@ export function useReservationProjections() {
     changeDate,
     updateProjection,
     setGlobalNoShowRate,
+    globalNoShowRate,
     saveAll,
     importSpreadsheet,
     importPDF,
