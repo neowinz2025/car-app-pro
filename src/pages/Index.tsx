@@ -18,7 +18,7 @@ const Index = () => {
   const [activeTab, setActiveTab] = useState<TabType>('scanner');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const hasShownWelcome = useRef(false);
-  const { getStoreId } = useCurrentUser();
+  const { getStoreId, storeInfo } = useCurrentUser();
 
   useEffect(() => {
     const session = localStorage.getItem('user_session');
@@ -94,7 +94,12 @@ const Index = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <Header plateCount={stats.total} onMenuClick={() => setIsDrawerOpen(true)} />
+      <Header
+        plateCount={stats.total}
+        onMenuClick={() => setIsDrawerOpen(true)}
+        storeLogo={storeInfo?.logo_url}
+        storeName={storeInfo?.name}
+      />
 
       <main className="flex-1">
         {renderContent()}

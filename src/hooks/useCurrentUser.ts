@@ -10,8 +10,16 @@ export interface CurrentUser {
   active: boolean;
 }
 
+export interface StoreInfo {
+  id: string;
+  name: string;
+  logo_url: string | null;
+  address: string | null;
+}
+
 export function useCurrentUser() {
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [storeInfo, setStoreInfo] = useState<StoreInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,6 +33,7 @@ export function useCurrentUser() {
       const sessionStr = localStorage.getItem('user_session');
       if (!sessionStr) {
         setCurrentUser(null);
+        setStoreInfo(null);
         return;
       }
 
@@ -39,9 +48,21 @@ export function useCurrentUser() {
       if (error) throw error;
 
       setCurrentUser(data);
+
+      if (data?.store_id) {
+        const { data: store } = await supabase
+          .from('stores')
+          .select('id, name, logo_url, address')
+          .eq('id', data.store_id)
+          .maybeSingle();
+        setStoreInfo(store);
+      } else {
+        setStoreInfo(null);
+      }
     } catch (error) {
       console.error('Error loading current user:', error);
       setCurrentUser(null);
+      setStoreInfo(null);
     } finally {
       setLoading(false);
     }
@@ -53,6 +74,7 @@ export function useCurrentUser() {
 
   return {
     currentUser,
+    storeInfo,
     loading,
     isSuperAdmin,
     isAdmin,

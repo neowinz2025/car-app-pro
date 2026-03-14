@@ -70,8 +70,7 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
   pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(0);
-  const reportTitle = data.reportNumber ? `Relatório de Avaria Nº ${data.reportNumber}` : 'RELATÓRIO DE AVARIA';
-  pdf.text(reportTitle, pageWidth / 2, yPosition, { align: 'center' });
+  pdf.text('RELATÓRIO DE AVARIA', pageWidth / 2, yPosition, { align: 'center' });
   yPosition += 8;
 
   pdf.setFontSize(9);

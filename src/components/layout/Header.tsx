@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 interface HeaderProps {
   plateCount: number;
   onMenuClick: () => void;
+  storeLogo?: string | null;
+  storeName?: string | null;
 }
 
-export function Header({ plateCount, onMenuClick }: HeaderProps) {
+export function Header({ plateCount, onMenuClick, storeLogo, storeName }: HeaderProps) {
   return (
     <header className="sticky top-0 z-30 bg-gradient-to-r from-primary to-primary/90 text-white shadow-lg safe-area-inset-top">
       <div className="flex items-center justify-between px-4 py-4">
@@ -20,13 +22,25 @@ export function Header({ plateCount, onMenuClick }: HeaderProps) {
         </Button>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20">
-            <Car className="w-5 h-5" />
-          </div>
-          <div>
-            <h1 className="text-lg font-bold">Baty Car</h1>
-            <p className="text-xs text-white/80">Controle de Pátio</p>
-          </div>
+          {storeLogo ? (
+            <div className="flex items-center justify-center h-10 max-w-[140px]">
+              <img
+                src={storeLogo}
+                alt={storeName || 'Logo'}
+                className="h-full max-w-full object-contain drop-shadow-sm"
+              />
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/20">
+                <Car className="w-5 h-5" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold">{storeName || 'Baty Car'}</h1>
+                <p className="text-xs text-white/80">Controle de Pátio</p>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-2 px-4 py-2 bg-white/20 rounded-xl backdrop-blur-sm">
