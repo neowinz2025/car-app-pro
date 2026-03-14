@@ -14,15 +14,15 @@ export const KNOWN_GRUPOS = [
 function normalizeDateToken(raw: string): string {
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return '';
-  const d = m[1].padStart(2, '0');
-  const mo = m[2].padStart(2, '0');
-  return `${d}/${mo}/${m[3]}`;
+  const mo = m[1].padStart(2, '0');
+  const d = m[2].padStart(2, '0');
+  return `${mo}/${d}/${m[3]}`;
 }
 
 export function isoToDisplayDate(iso: string): string {
   if (!iso) return '';
   const [y, mo, d] = iso.split('-');
-  return `${d}/${mo}/${y}`;
+  return `${mo}/${d}/${y}`;
 }
 
 type PageRow = { x: number; str: string }[];
