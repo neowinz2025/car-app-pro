@@ -1,5 +1,16 @@
 import { useRef, useState } from 'react';
-import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown, CalendarDays, X, FileSpreadsheet, FileText } from 'lucide-react';
+import {
+  Save,
+  ChartBar as BarChart3,
+  Car,
+  CircleAlert as AlertCircle,
+  TrendingDown,
+  CalendarDays,
+  X,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,11 +29,12 @@ interface ImportedFile {
 interface SpreadsheetImportButtonProps {
   label: string;
   type: ImportType;
-  accumulate?: boolean;
-  onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean) => void;
+  dateHint: string;
+  selectedDate: string;
+  onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean, filterDate: string | null) => void;
 }
 
-function SpreadsheetImportButton({ label, type, accumulate = false, onImport }: SpreadsheetImportButtonProps) {
+function SpreadsheetImportButton({ label, type, dateHint, selectedDate, onImport }: SpreadsheetImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<ImportedFile[]>([]);
 
@@ -32,9 +44,9 @@ function SpreadsheetImportButton({ label, type, accumulate = false, onImport }: 
     selected.forEach((file, idx) => {
       const isXLSX = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
       const reader = new FileReader();
-      const acc = accumulate || idx > 0 || files.length > 0;
+      const acc = idx > 0 || files.length > 0;
       reader.onload = (evt) => {
-        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, type, acc);
+        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, type, acc, selectedDate);
         setFiles((prev) => [...prev, { name: file.name }]);
       };
       isXLSX ? reader.readAsArrayBuffer(file) : reader.readAsText(file, 'UTF-8');
@@ -56,6 +68,12 @@ function SpreadsheetImportButton({ label, type, accumulate = false, onImport }: 
           </button>
         )}
       </div>
+      <div className="flex items-center gap-1 pl-1">
+        <Filter className="w-2.5 h-2.5 text-muted-foreground/60" />
+        <span className="text-[10px] text-muted-foreground/70">
+          filtra por <em>{dateHint}</em> = {formatDateBR(selectedDate)}
+        </span>
+      </div>
       {files.map((f, i) => (
         <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
           <FileSpreadsheet className="w-3 h-3 text-green-500 shrink-0" />
@@ -68,25 +86,27 @@ function SpreadsheetImportButton({ label, type, accumulate = false, onImport }: 
 
 interface PDFImportButtonProps {
   label: string;
-  color: string;
-  onImport: (buffer: ArrayBuffer, fileName: string, accumulate: boolean) => Promise<void>;
+  selectedDate: string;
+  onImport: (buffer: ArrayBuffer, fileName: string, accumulate: boolean, filterDate: string | null) => Promise<void>;
   filesImported: ImportedFile[];
   onFilesChange: (files: ImportedFile[]) => void;
 }
 
-function PDFImportButton({ label, color, onImport, filesImported, onFilesChange }: PDFImportButtonProps) {
+function PDFImportButton({ label, selectedDate, onImport, filesImported, onFilesChange }: PDFImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files ?? []);
     if (!selected.length) return;
+    const newFiles = [...filesImported];
     selected.forEach((file, idx) => {
       const reader = new FileReader();
       reader.onload = async (evt) => {
         const buffer = evt.target?.result as ArrayBuffer;
         const acc = idx > 0 || filesImported.length > 0;
-        await onImport(buffer, file.name, acc);
-        onFilesChange([...filesImported, { name: file.name }]);
+        await onImport(buffer, file.name, acc, null);
+        newFiles.push({ name: file.name });
+        onFilesChange([...newFiles]);
       };
       reader.readAsArrayBuffer(file);
     });
@@ -100,7 +120,7 @@ function PDFImportButton({ label, color, onImport, filesImported, onFilesChange 
         <Button
           variant="outline"
           size="sm"
-          className={`gap-1.5 text-xs border-${color}-300 text-${color}-700 hover:bg-${color}-50`}
+          className="gap-1.5 text-xs"
           onClick={() => inputRef.current?.click()}
         >
           <FileText className="w-3.5 h-3.5" />
@@ -123,15 +143,13 @@ function PDFImportButton({ label, color, onImport, filesImported, onFilesChange 
 }
 
 function DateSelector({ value, onChange }: { value: string; onChange: (date: string) => void }) {
-  const handleNativeChange = (e: React.ChangeEvent<HTMLInputElement>) => onChange(e.target.value);
-
   return (
     <div className="flex items-center gap-2">
       <CalendarDays className="w-4 h-4 text-muted-foreground" />
       <input
         type="date"
         value={value}
-        onChange={handleNativeChange}
+        onChange={(e) => onChange(e.target.value)}
         className="border rounded px-3 h-9 text-sm bg-background cursor-pointer font-medium"
         title="Selecionar data"
       />
@@ -194,7 +212,7 @@ export function ReservationProjectionsView() {
             </div>
             <div className="h-8 w-px bg-border hidden md:block" />
             <p className="text-xs text-muted-foreground">
-              Dados para <strong>{formatDateBR(selectedDate)}</strong>. Altere a data para consultar ou registrar projeções de outros dias.
+              Dados para <strong>{formatDateBR(selectedDate)}</strong>. Importações de arquivo são filtradas automaticamente por essa data.
             </p>
           </div>
         </CardContent>
@@ -264,9 +282,21 @@ export function ReservationProjectionsView() {
             <p className="text-xs font-semibold text-muted-foreground mb-3 uppercase tracking-wide">
               Reservas e Projeção de Retorno (CSV / XLSX)
             </p>
-            <div className="flex flex-wrap gap-4">
-              <SpreadsheetImportButton label="Reservas" type="reservations" onImport={importSpreadsheet} />
-              <SpreadsheetImportButton label="Projeção de Retorno" type="projection" onImport={importSpreadsheet} />
+            <div className="flex flex-wrap gap-5">
+              <SpreadsheetImportButton
+                label="Reservas"
+                type="reservations"
+                dateHint="Data Ret."
+                selectedDate={selectedDate}
+                onImport={importSpreadsheet}
+              />
+              <SpreadsheetImportButton
+                label="Projeção de Retorno"
+                type="projection"
+                dateHint="Data Dev."
+                selectedDate={selectedDate}
+                onImport={importSpreadsheet}
+              />
             </div>
           </CardContent>
         </Card>
@@ -275,22 +305,22 @@ export function ReservationProjectionsView() {
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center justify-between mb-3">
               <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">
-                NO / DI — Veículos Disponíveis (PDF ou CSV/XLSX)
+                NO / DI — Veículos Disponíveis (PDF)
               </p>
               {allFilesCount > 0 && (
                 <button onClick={handleClearNoDI} className="text-xs text-muted-foreground hover:text-destructive flex items-center gap-1">
-                  <X className="w-3 h-3" /> limpar todos
+                  <X className="w-3 h-3" /> limpar
                 </button>
               )}
             </div>
             <div className="flex flex-wrap gap-3">
-              <PDFImportButton label="DI" color="slate" onImport={importPDF} filesImported={diFiles} onFilesChange={setDiFiles} />
-              <PDFImportButton label="LV" color="slate" onImport={importPDF} filesImported={lvFiles} onFilesChange={setLvFiles} />
-              <PDFImportButton label="NO" color="slate" onImport={importPDF} filesImported={noFiles} onFilesChange={setNoFiles} />
-              <PDFImportButton label="CQ" color="slate" onImport={importPDF} filesImported={cqFiles} onFilesChange={setCqFiles} />
+              <PDFImportButton label="DI" selectedDate={selectedDate} onImport={importPDF} filesImported={diFiles} onFilesChange={setDiFiles} />
+              <PDFImportButton label="LV" selectedDate={selectedDate} onImport={importPDF} filesImported={lvFiles} onFilesChange={setLvFiles} />
+              <PDFImportButton label="NO" selectedDate={selectedDate} onImport={importPDF} filesImported={noFiles} onFilesChange={setNoFiles} />
+              <PDFImportButton label="CQ" selectedDate={selectedDate} onImport={importPDF} filesImported={cqFiles} onFilesChange={setCqFiles} />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Cada arquivo é somado automaticamente à coluna NO/DI. Aceita PDF exportado do sistema ou CSV/XLSX com coluna Grupo.
+              Soma todos os veículos encontrados no PDF à coluna NO/DI, sem filtro de data.
             </p>
           </CardContent>
         </Card>

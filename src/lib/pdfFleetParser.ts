@@ -5,103 +5,183 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url
 ).toString();
 
-function normalizeLine(line: string): string {
-  return line.replace(/\s+/g, ' ').trim();
-}
-
-const KNOWN_GRUPOS = [
+export const KNOWN_GRUPOS = [
   'AM','AT','B','BS','C','CA','CX','CG','E','EA',
   'G1','G2','I','IE','J','J2','LX','SG','SM','SP',
   'SU','SV','T','TS','TT','VU','VC',
 ];
 
-function extractGrupoFromText(allText: string): Record<string, number> {
-  const counts: Record<string, number> = {};
-  const lines = allText.split('\n').map(normalizeLine).filter(Boolean);
+function normalizeDateToken(raw: string): string {
+  const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return '';
+  const d = m[1].padStart(2, '0');
+  const mo = m[2].padStart(2, '0');
+  return `${d}/${mo}/${m[3]}`;
+}
 
-  let headerLineIdx = -1;
-  let grupoColIdx = -1;
+export function isoToDisplayDate(iso: string): string {
+  if (!iso) return '';
+  const [y, mo, d] = iso.split('-');
+  return `${d}/${mo}/${y}`;
+}
 
-  for (let i = 0; i < lines.length; i++) {
-    const parts = lines[i].split(' ');
-    const gIdx = parts.findIndex((p) => p === 'Grupo');
-    if (gIdx !== -1) {
-      headerLineIdx = i;
-      grupoColIdx = gIdx;
-      break;
-    }
+type PageRow = { x: number; str: string }[];
+
+async function extractPageRows(pdf: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<PageRow[]> {
+  const page = await pdf.getPage(pageNum);
+  const content = await page.getTextContent();
+
+  const byY: Record<number, PageRow> = {};
+  for (const item of content.items) {
+    if (!('str' in item) || !item.str.trim()) continue;
+    const y = Math.round((item as { transform: number[] }).transform[5]);
+    const x = Math.round((item as { transform: number[] }).transform[4]);
+    if (!byY[y]) byY[y] = [];
+    byY[y].push({ x, str: item.str });
   }
 
-  if (headerLineIdx === -1) {
-    return extractGrupoFallback(allText);
-  }
+  return Object.keys(byY)
+    .map(Number)
+    .sort((a, b) => b - a)
+    .map((y) => byY[y].sort((a, b) => a.x - b.x));
+}
 
-  for (let i = headerLineIdx + 1; i < lines.length; i++) {
-    const parts = lines[i].split(' ');
-    if (grupoColIdx < parts.length) {
-      const candidate = parts[grupoColIdx];
-      if (KNOWN_GRUPOS.includes(candidate)) {
-        counts[candidate] = (counts[candidate] ?? 0) + 1;
+function rowToTokens(row: PageRow): string[] {
+  return row.map((r) => r.str.trim()).filter(Boolean);
+}
+
+function findHeaderRow(rows: PageRow[][]): { rowIdx: number; pageIdx: number; tokens: string[] } | null {
+  for (let pi = 0; pi < rows.length; pi++) {
+    for (let ri = 0; ri < rows[pi].length; ri++) {
+      const tokens = rowToTokens(rows[pi][ri]);
+      if (tokens.includes('Grupo')) {
+        return { pageIdx: pi, rowIdx: ri, tokens };
       }
     }
   }
+  return null;
+}
 
-  if (Object.values(counts).reduce((s, v) => s + v, 0) === 0) {
-    return extractGrupoFallback(allText);
+function parseRowsWithDateFilter(
+  allPageRows: PageRow[][],
+  headerPageIdx: number,
+  headerRowIdx: number,
+  headerTokens: string[],
+  filterDate: string | null
+): Record<string, number> {
+  const grupoIdx = headerTokens.indexOf('Grupo');
+
+  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.'];
+  let dateIdx = -1;
+  for (const name of dateColNames) {
+    const idx = headerTokens.indexOf(name);
+    if (idx !== -1) { dateIdx = idx; break; }
+  }
+
+  const counts: Record<string, number> = {};
+
+  for (let pi = headerPageIdx; pi < allPageRows.length; pi++) {
+    const startRow = pi === headerPageIdx ? headerRowIdx + 1 : 0;
+    for (let ri = startRow; ri < allPageRows[pi].length; ri++) {
+      const tokens = rowToTokens(allPageRows[pi][ri]);
+      if (tokens.length <= grupoIdx) continue;
+      const grupo = tokens[grupoIdx];
+      if (!KNOWN_GRUPOS.includes(grupo)) continue;
+
+      if (filterDate && dateIdx !== -1 && tokens.length > dateIdx) {
+        const rowDate = normalizeDateToken(tokens[dateIdx]);
+        if (rowDate !== filterDate) continue;
+      }
+
+      counts[grupo] = (counts[grupo] ?? 0) + 1;
+    }
   }
 
   return counts;
 }
 
-function extractGrupoFallback(allText: string): Record<string, number> {
+function fallbackExtract(allPageRows: PageRow[][], filterDate: string | null): Record<string, number> {
   const counts: Record<string, number> = {};
-  const tokens = allText.split(/\s+/);
+  for (const rows of allPageRows) {
+    for (const row of rows) {
+      const tokens = rowToTokens(row);
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (!KNOWN_GRUPOS.includes(token)) continue;
+        const prev = tokens[i - 1] ?? '';
+        const next = tokens[i + 1] ?? '';
+        const looksLikePlate =
+          /^[A-Z]{3}\d[A-Z\d]\d{2}$/.test(prev) || /^[A-Z]{3}\d{4}$/.test(prev);
+        const nextIsModel = /^[A-Z]/.test(next) && next.length > 2;
+        if (!looksLikePlate && !nextIsModel) continue;
 
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i];
-    if (KNOWN_GRUPOS.includes(token)) {
-      const prev = tokens[i - 1] ?? '';
-      const next = tokens[i + 1] ?? '';
-      const looksLikePlate = /^[A-Z]{3}\d[A-Z\d]\d{2}$/.test(prev) || /^[A-Z]{3}\d{4}$/.test(prev);
-      const nextIsModel = /^[A-Z]/.test(next) && next.length > 2;
-      if (looksLikePlate || nextIsModel) {
+        if (filterDate) {
+          const dateInRow = tokens.find((t) => normalizeDateToken(t) === filterDate);
+          if (!dateInRow) continue;
+        }
+
         counts[token] = (counts[token] ?? 0) + 1;
       }
     }
   }
+  return counts;
+}
+
+export async function parsePDFByGrupo(
+  buffer: ArrayBuffer,
+  filterDateISO: string | null = null
+): Promise<Record<string, number>> {
+  const filterDate = filterDateISO ? isoToDisplayDate(filterDateISO) : null;
+
+  const loadingTask = pdfjsLib.getDocument({ data: buffer });
+  const pdf = await loadingTask.promise;
+
+  const allPageRows: PageRow[][] = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    allPageRows.push(await extractPageRows(pdf, pageNum));
+  }
+
+  const header = findHeaderRow(allPageRows);
+
+  if (!header) {
+    return fallbackExtract(allPageRows, filterDate);
+  }
+
+  const counts = parseRowsWithDateFilter(
+    allPageRows,
+    header.pageIdx,
+    header.rowIdx,
+    header.tokens,
+    filterDate
+  );
+
+  if (Object.values(counts).reduce((s, v) => s + v, 0) === 0) {
+    return fallbackExtract(allPageRows, filterDate);
+  }
 
   return counts;
 }
 
-export async function parsePDFByGrupo(buffer: ArrayBuffer): Promise<Record<string, number>> {
-  const loadingTask = pdfjsLib.getDocument({ data: buffer });
-  const pdf = await loadingTask.promise;
+export function parseSpreadsheetRowsByDate(
+  rows: Record<string, string>[],
+  dateColumnKey: string,
+  filterDateISO: string | null
+): Record<string, number> {
+  const filterDate = filterDateISO ? isoToDisplayDate(filterDateISO) : null;
+  const counts: Record<string, number> = {};
 
-  let fullText = '';
+  for (const row of rows) {
+    const grupo = (row['Grupo'] ?? '').trim();
+    if (!grupo) continue;
 
-  for (let pageNum = 1; pageNum <= Math.min(pdf.numPages, 2); pageNum++) {
-    const page = await pdf.getPage(pageNum);
-    const content = await page.getTextContent();
-
-    const itemsByY: Record<number, { x: number; str: string }[]> = {};
-    for (const item of content.items) {
-      if ('str' in item && item.str.trim()) {
-        const y = Math.round((item as { transform: number[] }).transform[5]);
-        const x = Math.round((item as { transform: number[] }).transform[4]);
-        if (!itemsByY[y]) itemsByY[y] = [];
-        itemsByY[y].push({ x, str: item.str });
-      }
+    if (filterDate && dateColumnKey) {
+      const rawDate = (row[dateColumnKey] ?? '').trim();
+      const normalized = normalizeDateToken(rawDate) || rawDate;
+      if (normalized !== filterDate) continue;
     }
 
-    const sortedYs = Object.keys(itemsByY)
-      .map(Number)
-      .sort((a, b) => b - a);
-
-    for (const y of sortedYs) {
-      const row = itemsByY[y].sort((a, b) => a.x - b.x);
-      fullText += row.map((r) => r.str).join(' ') + '\n';
-    }
+    counts[grupo] = (counts[grupo] ?? 0) + 1;
   }
 
-  return extractGrupoFromText(fullText);
+  return counts;
 }

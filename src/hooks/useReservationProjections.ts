@@ -1,10 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
-import { parsePDFByGrupo } from '@/lib/pdfFleetParser';
+import { parsePDFByGrupo, parseSpreadsheetRowsByDate } from '@/lib/pdfFleetParser';
 import { toast } from 'sonner';
 
 export type ImportType = 'reservations' | 'projection' | 'available';
+
+export const RESERVATIONS_DATE_COL = 'Data Ret.';
+export const PROJECTION_DATE_COL = 'Data Dev.';
 
 function parseCSVRows(text: string): Record<string, string>[] {
   const lines = text.trim().split('\n');
@@ -27,20 +30,6 @@ function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
     for (const k of Object.keys(r)) out[k] = String(r[k] ?? '');
     return out;
   });
-}
-
-function countByGrupo(rows: Record<string, string>[]): Record<string, number> {
-  const counts: Record<string, number> = {};
-  for (const row of rows) {
-    const grupo = (row['Grupo'] ?? '').trim();
-    if (grupo) counts[grupo] = (counts[grupo] ?? 0) + 1;
-  }
-  return counts;
-}
-
-export function parseSpreadsheetByGrupo(data: string | ArrayBuffer, isXLSX: boolean): Record<string, number> {
-  const rows = isXLSX ? parseXLSXRows(data as ArrayBuffer) : parseCSVRows(data as string);
-  return countByGrupo(rows);
 }
 
 export const VEHICLE_CATEGORIES = [
@@ -132,10 +121,20 @@ export function useReservationProjections() {
     );
   };
 
-  const applyImportCounts = (counts: Record<string, number>, type: ImportType, accumulate: boolean, label: string) => {
+  const applyImportCounts = (
+    counts: Record<string, number>,
+    type: ImportType,
+    accumulate: boolean,
+    label: string,
+    filteredDate: string | null
+  ) => {
     const total = Object.values(counts).reduce((s, v) => s + v, 0);
     if (total === 0) {
-      toast.error('Nenhum veículo encontrado no arquivo. Verifique a coluna "Grupo".');
+      if (filteredDate) {
+        toast.error(`Nenhum veículo encontrado para a data ${filteredDate.split('-').reverse().join('/')}. Verifique se o arquivo contém dados para essa data.`);
+      } else {
+        toast.error('Nenhum veículo encontrado no arquivo. Verifique a coluna "Grupo".');
+      }
       return;
     }
     setProjections((prev) =>
@@ -147,19 +146,46 @@ export function useReservationProjections() {
         return p;
       })
     );
-    toast.success(`${label} importado: ${total} veículos`);
+    const dateLabel = filteredDate
+      ? ` (${filteredDate.split('-').reverse().join('/')})`
+      : '';
+    toast.success(`${label} importado${dateLabel}: ${total} veículos`);
   };
 
-  const importSpreadsheet = (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate = false) => {
-    const counts = parseSpreadsheetByGrupo(data, isXLSX);
-    const label = type === 'reservations' ? 'Reservas' : type === 'projection' ? 'Projeção de Retorno' : 'Disponível';
-    applyImportCounts(counts, type, accumulate, label);
+  const importSpreadsheet = (
+    data: string | ArrayBuffer,
+    isXLSX: boolean,
+    type: ImportType,
+    accumulate: boolean,
+    filterDate: string | null
+  ) => {
+    const rows = isXLSX
+      ? parseXLSXRows(data as ArrayBuffer)
+      : parseCSVRows(data as string);
+
+    const dateCol =
+      type === 'reservations' ? RESERVATIONS_DATE_COL
+      : type === 'projection' ? PROJECTION_DATE_COL
+      : null;
+
+    const counts = parseSpreadsheetRowsByDate(rows, dateCol ?? '', filterDate);
+    const label =
+      type === 'reservations' ? 'Reservas'
+      : type === 'projection' ? 'Projeção de Retorno'
+      : 'Disponível';
+
+    applyImportCounts(counts, type, accumulate, label, filterDate);
   };
 
-  const importPDF = async (buffer: ArrayBuffer, fileName: string, accumulate: boolean) => {
+  const importPDF = async (
+    buffer: ArrayBuffer,
+    fileName: string,
+    accumulate: boolean,
+    filterDate: string | null
+  ) => {
     try {
-      const counts = await parsePDFByGrupo(buffer);
-      applyImportCounts(counts, 'available', accumulate, fileName);
+      const counts = await parsePDFByGrupo(buffer, filterDate);
+      applyImportCounts(counts, 'available', accumulate, fileName, filterDate);
     } catch (err) {
       console.error('PDF parse error:', err);
       toast.error(`Erro ao ler PDF: ${fileName}`);
