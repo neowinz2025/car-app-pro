@@ -3,7 +3,7 @@ import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export type CsvImportType = 'reservations' | 'projection' | 'available';
+export type ImportType = 'reservations' | 'projection' | 'available';
 
 function parseCSVRows(text: string): Record<string, string>[] {
   const lines = text.trim().split('\n');
@@ -43,16 +43,9 @@ function countByGrupo(rows: Record<string, string>[]): Record<string, number> {
   return counts;
 }
 
-export function parseReservationsCSV(text: string): Record<string, number> {
-  return countByGrupo(parseCSVRows(text));
-}
-
-export function parseVehicleGroupCSV(text: string): Record<string, number> {
-  return countByGrupo(parseCSVRows(text));
-}
-
-export function parseXLSXByGrupo(buffer: ArrayBuffer): Record<string, number> {
-  return countByGrupo(parseXLSXRows(buffer));
+export function parseFileByGrupo(data: string | ArrayBuffer, isXLSX: boolean): Record<string, number> {
+  const rows = isXLSX ? parseXLSXRows(data as ArrayBuffer) : parseCSVRows(data as string);
+  return countByGrupo(rows);
 }
 
 export const VEHICLE_CATEGORIES = [
@@ -68,13 +61,19 @@ export interface ReservationProjection {
   no_show_rate: number;
   available_vehicles: number;
   projection: number;
+  projection_date: string;
 }
 
 export function computeEstimatedUsage(reservations: number, noShowRate: number): number {
   return Math.floor(reservations * (1 - noShowRate / 100));
 }
 
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export function useReservationProjections() {
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO());
   const [projections, setProjections] = useState<ReservationProjection[]>(() =>
     VEHICLE_CATEGORIES.map((cat) => ({
       category: cat,
@@ -82,17 +81,19 @@ export function useReservationProjections() {
       no_show_rate: 0,
       available_vehicles: 0,
       projection: 0,
+      projection_date: todayISO(),
     }))
   );
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (date: string) => {
     try {
       setLoading(true);
       const { data, error } = await supabase
         .from('reservation_projections')
-        .select('*');
+        .select('*')
+        .eq('projection_date', date);
 
       if (error) throw error;
 
@@ -107,8 +108,9 @@ export function useReservationProjections() {
                 no_show_rate: Number(existing.no_show_rate),
                 available_vehicles: existing.available_vehicles ?? 0,
                 projection: existing.projection ?? 0,
+                projection_date: existing.projection_date ?? date,
               }
-            : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0 };
+            : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0, projection_date: date };
         })
       );
     } catch (err) {
@@ -120,8 +122,12 @@ export function useReservationProjections() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    load(selectedDate);
+  }, [load, selectedDate]);
+
+  const changeDate = (date: string) => {
+    setSelectedDate(date);
+  };
 
   const updateProjection = (category: string, field: 'reservations_count' | 'no_show_rate' | 'available_vehicles' | 'projection', value: number) => {
     setProjections((prev) =>
@@ -129,7 +135,7 @@ export function useReservationProjections() {
     );
   };
 
-  const applyImport = (counts: Record<string, number>, type: CsvImportType) => {
+  const applyImport = (counts: Record<string, number>, type: ImportType, accumulate = false) => {
     const total = Object.values(counts).reduce((s, v) => s + v, 0);
     if (total === 0) {
       toast.error('Nenhum dado encontrado no arquivo. Verifique se o formato está correto.');
@@ -138,8 +144,8 @@ export function useReservationProjections() {
     setProjections((prev) =>
       prev.map((p) => {
         const val = counts[p.category] ?? 0;
-        if (type === 'reservations') return { ...p, reservations_count: val };
-        if (type === 'projection') return { ...p, projection: val };
+        if (type === 'reservations') return { ...p, reservations_count: accumulate ? p.reservations_count + val : val };
+        if (type === 'projection') return { ...p, projection: accumulate ? p.projection + val : val };
         if (type === 'available') return { ...p, available_vehicles: p.available_vehicles + val };
         return p;
       })
@@ -148,14 +154,9 @@ export function useReservationProjections() {
     toast.success(`${label} importado com sucesso (${total} registros)`);
   };
 
-  const importFromCSV = (csvText: string, type: CsvImportType) => {
-    const counts = type === 'reservations' ? parseReservationsCSV(csvText) : parseVehicleGroupCSV(csvText);
-    applyImport(counts, type);
-  };
-
-  const importFromXLSX = (buffer: ArrayBuffer, type: CsvImportType) => {
-    const counts = parseXLSXByGrupo(buffer);
-    applyImport(counts, type);
+  const importFile = (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate = false) => {
+    const counts = parseFileByGrupo(data, isXLSX);
+    applyImport(counts, type, accumulate);
   };
 
   const saveAll = async () => {
@@ -168,17 +169,18 @@ export function useReservationProjections() {
         no_show_rate: p.no_show_rate,
         available_vehicles: p.available_vehicles,
         projection: p.projection,
+        projection_date: selectedDate,
         updated_at: new Date().toISOString(),
       }));
 
       const { error } = await supabase
         .from('reservation_projections')
-        .upsert(toUpsert, { onConflict: 'category' });
+        .upsert(toUpsert, { onConflict: 'category,projection_date' });
 
       if (error) throw error;
 
       toast.success('Projeções salvas com sucesso');
-      await load();
+      await load(selectedDate);
     } catch (err) {
       console.error('Error saving projections:', err);
       toast.error('Erro ao salvar projeções');
@@ -204,10 +206,11 @@ export function useReservationProjections() {
     projections,
     loading,
     saving,
+    selectedDate,
+    changeDate,
     updateProjection,
     saveAll,
-    importFromCSV,
-    importFromXLSX,
+    importFile,
     totalReservations,
     totalEstimated,
     avgNoShow,
