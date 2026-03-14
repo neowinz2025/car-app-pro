@@ -39,13 +39,26 @@ function parseCSVRows(text: string): Record<string, string>[] {
   });
 }
 
+function formatExcelDate(val: unknown): string {
+  if (val instanceof Date) {
+    const d = String(val.getDate()).padStart(2, '0');
+    const m = String(val.getMonth() + 1).padStart(2, '0');
+    const y = val.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  return String(val ?? '');
+}
+
 function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
-  const workbook = XLSX.read(buffer, { type: 'array' });
+  const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
   return rows.map((r) => {
     const out: Record<string, string> = {};
-    for (const k of Object.keys(r)) out[k] = String(r[k] ?? '');
+    for (const k of Object.keys(r)) {
+      const v = r[k];
+      out[k] = v instanceof Date ? formatExcelDate(v) : String(v ?? '');
+    }
     return out;
   });
 }

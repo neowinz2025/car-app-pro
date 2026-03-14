@@ -83,7 +83,7 @@ function parseRowsWithDateFilter(
 ): Record<string, number> {
   const grupoIdx = headerTokens.indexOf('Grupo');
 
-  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.'];
+  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.', 'Data Ret', 'Data Dev', 'Data Res'];
   let dateIdx = -1;
   for (const name of dateColNames) {
     const idx = headerTokens.indexOf(name);
@@ -120,7 +120,7 @@ function parseRowsByAllDates(
 ): Record<string, Record<string, number>> {
   const grupoIdx = headerTokens.indexOf('Grupo');
 
-  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.'];
+  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.', 'Data Ret', 'Data Dev', 'Data Res'];
   let dateIdx = -1;
   for (const name of dateColNames) {
     const idx = headerTokens.indexOf(name);
@@ -283,6 +283,48 @@ export async function parsePDFByGrupoAllDates(
   return byDate;
 }
 
+function resolveColumn(row: Record<string, string>, candidates: string[]): string {
+  for (const c of candidates) {
+    if (c in row) return row[c];
+  }
+  return '';
+}
+
+function resolveGrupo(row: Record<string, string>): string {
+  return resolveColumn(row, ['Grupo', 'Grp', 'Grpo', 'grupo']).trim();
+}
+
+function resolveDateValue(row: Record<string, string>, dateColumnKey: string): string {
+  const candidates = [
+    dateColumnKey,
+    dateColumnKey.replace(/\.$/, ''),
+    dateColumnKey + '.',
+  ];
+  return resolveColumn(row, candidates).trim();
+}
+
+function parseDateValue(raw: string): string {
+  if (!raw) return 'sem-data';
+  const normalized = normalizeDateToken(raw) || raw;
+  const converted = brDateToISO(normalized);
+  if (converted) return converted;
+  const usMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (usMatch) {
+    const asBR = `${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`;
+    const isoFromUS = brDateToISO(asBR);
+    if (isoFromUS) return isoFromUS;
+  }
+  const excelSerial = parseInt(raw, 10);
+  if (!isNaN(excelSerial) && excelSerial > 40000 && excelSerial < 60000) {
+    const date = new Date((excelSerial - 25569) * 86400 * 1000);
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return 'sem-data';
+}
+
 export function parseSpreadsheetRowsByDate(
   rows: Record<string, string>[],
   dateColumnKey: string,
@@ -293,11 +335,11 @@ export function parseSpreadsheetRowsByDate(
   const counts: Record<string, number> = {};
 
   for (const row of rows) {
-    const grupo = (row['Grupo'] ?? '').trim();
+    const grupo = resolveGrupo(row);
     if (!grupo) continue;
 
     if (filterDateBR && dateColumnKey) {
-      const rawDate = (row[dateColumnKey] ?? '').trim();
+      const rawDate = resolveDateValue(row, dateColumnKey);
       const normalized = normalizeDateToken(rawDate) || rawDate;
       if (normalized !== filterDateBR && normalized !== filterDateUS) continue;
     }
@@ -315,24 +357,13 @@ export function parseSpreadsheetRowsByAllDates(
   const byDate: Record<string, Record<string, number>> = {};
 
   for (const row of rows) {
-    const grupo = (row['Grupo'] ?? '').trim();
+    const grupo = resolveGrupo(row);
     if (!grupo) continue;
 
     let dateISO = 'sem-data';
     if (dateColumnKey) {
-      const rawDate = (row[dateColumnKey] ?? '').trim();
-      const normalized = normalizeDateToken(rawDate) || rawDate;
-      const converted = brDateToISO(normalized);
-      if (converted) {
-        dateISO = converted;
-      } else if (rawDate) {
-        const usMatch = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-        if (usMatch) {
-          const asBR = `${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`;
-          const isoFromUS = brDateToISO(asBR);
-          if (isoFromUS) dateISO = isoFromUS;
-        }
-      }
+      const rawDate = resolveDateValue(row, dateColumnKey);
+      dateISO = parseDateValue(rawDate);
     }
 
     if (!byDate[dateISO]) byDate[dateISO] = {};
