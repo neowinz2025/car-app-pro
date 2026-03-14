@@ -13,6 +13,7 @@ import { UsersManagement } from '@/components/users/UsersManagement';
 import { AdminsManagement } from '@/components/admin/AdminsManagement';
 import { ApiKeysManagement } from '@/components/admin/ApiKeysManagement';
 import { StoresManagement } from '@/components/stores/StoresManagement';
+import { ReservationProjectionsView } from '@/components/reservations/ReservationProjectionsView';
 import { AdminDrawer, AdminTabType } from '@/components/layout/AdminDrawer';
 import {
   AlertDialog,
@@ -666,6 +667,20 @@ export default function AdminDashboard() {
                 <UsersManagement adminUsername={adminUsername || 'admin'} />
               </CardContent>
             </Card>
+        );
+      case 'reservations':
+        return (
+          <Card className="max-w-5xl mx-auto">
+            <CardHeader>
+              <CardTitle>Projeção de Reservas Futuras</CardTitle>
+              <CardDescription>
+                Controle de categorias de veículos com aplicação da taxa de no-show
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ReservationProjectionsView />
+            </CardContent>
+          </Card>
         );
       case 'admins':
         if (!isSuperAdmin()) return null;
