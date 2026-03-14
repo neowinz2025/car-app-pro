@@ -183,5 +183,6 @@ export function parseSpreadsheetRowsByDate(
     counts[grupo] = (counts[grupo] ?? 0) + 1;
   }
 
+
   return counts;
 }

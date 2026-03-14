@@ -85,13 +85,12 @@ function SpreadsheetImportButton({ label, type, dateHint, selectedDate, onImport
 
 interface NoDiImportButtonProps {
   label: string;
-  selectedDate: string;
   onImport: (data: string | ArrayBuffer, isXLSX: boolean, type: ImportType, accumulate: boolean, filterDate: string | null) => void;
   filesImported: ImportedFile[];
   onFilesChange: (files: ImportedFile[]) => void;
 }
 
-function NoDiImportButton({ label, selectedDate, onImport, filesImported, onFilesChange }: NoDiImportButtonProps) {
+function NoDiImportButton({ label, onImport, filesImported, onFilesChange }: NoDiImportButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -103,7 +102,7 @@ function NoDiImportButton({ label, selectedDate, onImport, filesImported, onFile
       const reader = new FileReader();
       reader.onload = (evt) => {
         const acc = idx > 0 || filesImported.length > 0;
-        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, 'available', acc, selectedDate);
+        onImport(evt.target?.result as string | ArrayBuffer, isXLSX, 'available', acc, null);
         newFiles.push({ name: file.name });
         onFilesChange([...newFiles]);
       };
@@ -132,10 +131,7 @@ function NoDiImportButton({ label, selectedDate, onImport, filesImported, onFile
         )}
       </div>
       <div className="flex items-center gap-1 pl-1">
-        <Filter className="w-2.5 h-2.5 text-muted-foreground/60" />
-        <span className="text-[10px] text-muted-foreground/70">
-          filtra por <em>Data Ret.</em> = {formatDateBR(selectedDate)}
-        </span>
+        <span className="text-[10px] text-muted-foreground/70">coluna <em>Grupo</em></span>
       </div>
       {filesImported.map((f, i) => (
         <div key={i} className="flex items-center gap-1 text-xs text-muted-foreground pl-1">
@@ -319,10 +315,10 @@ export function ReservationProjectionsView() {
               )}
             </div>
             <div className="flex flex-wrap gap-3">
-              <NoDiImportButton label="DI" selectedDate={selectedDate} onImport={importSpreadsheet} filesImported={diFiles} onFilesChange={setDiFiles} />
-              <NoDiImportButton label="LV" selectedDate={selectedDate} onImport={importSpreadsheet} filesImported={lvFiles} onFilesChange={setLvFiles} />
-              <NoDiImportButton label="NO" selectedDate={selectedDate} onImport={importSpreadsheet} filesImported={noFiles} onFilesChange={setNoFiles} />
-              <NoDiImportButton label="CQ" selectedDate={selectedDate} onImport={importSpreadsheet} filesImported={cqFiles} onFilesChange={setCqFiles} />
+              <NoDiImportButton label="DI" onImport={importSpreadsheet} filesImported={diFiles} onFilesChange={setDiFiles} />
+              <NoDiImportButton label="LV" onImport={importSpreadsheet} filesImported={lvFiles} onFilesChange={setLvFiles} />
+              <NoDiImportButton label="NO" onImport={importSpreadsheet} filesImported={noFiles} onFilesChange={setNoFiles} />
+              <NoDiImportButton label="CQ" onImport={importSpreadsheet} filesImported={cqFiles} onFilesChange={setCqFiles} />
             </div>
             <p className="text-xs text-muted-foreground mt-2">
               Filtra pela coluna <strong>Data Ret.</strong> igual à data selecionada.
