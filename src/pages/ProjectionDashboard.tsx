@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { computeEstimatedUsage, VEHICLE_CATEGORIES } from '@/hooks/useReservationProjections';
@@ -14,7 +14,7 @@ import {
   LineChart,
   Line,
 } from 'recharts';
-import { CalendarDays, Car, TrendingDown, CircleAlert as AlertCircle, ChartBar as BarChart3, ArrowLeft, ArrowRight } from 'lucide-react';
+import { CalendarDays, Car, TrendingDown, CircleAlert as AlertCircle, ChartBar as BarChart3, ArrowLeft, ArrowRight, Camera } from 'lucide-react';
 
 interface Projection {
   category: string;
@@ -48,6 +48,7 @@ export default function ProjectionDashboard() {
   const [projections, setProjections] = useState<Projection[]>([]);
   const [loading, setLoading] = useState(true);
   const [availableDates, setAvailableDates] = useState<string[]>([]);
+  const printCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!token) { setValid(false); return; }
@@ -73,28 +74,86 @@ export default function ProjectionDashboard() {
       });
   }, []);
 
+  const fetchFileRows = useCallback(async (date: string, fileType: string): Promise<Record<string, number>> => {
+    const { data, error } = await supabase
+      .from('daily_file_rows' as never)
+      .select('category, count')
+      .eq('upload_date', date)
+      .eq('file_type', fileType);
+    if (error || !data) return {};
+    const rows = data as { category: string; count: number }[];
+    if (rows.length === 0 && ['di', 'lv', 'no', 'cq'].includes(fileType)) {
+      const { data: fb } = await supabase
+        .from('daily_file_rows' as never)
+        .select('category, count, upload_date')
+        .eq('file_type', fileType)
+        .lt('upload_date' as never, date)
+        .order('upload_date' as never, { ascending: false })
+        .limit(500);
+      if (fb) {
+        const fbRows = fb as { category: string; count: number; upload_date: string }[];
+        const latestDate = fbRows[0]?.upload_date;
+        if (latestDate) {
+          const totals: Record<string, number> = {};
+          for (const r of fbRows.filter((r) => r.upload_date === latestDate)) {
+            totals[r.category] = (totals[r.category] ?? 0) + r.count;
+          }
+          return totals;
+        }
+      }
+      return {};
+    }
+    const totals: Record<string, number> = {};
+    for (const r of rows) totals[r.category] = (totals[r.category] ?? 0) + r.count;
+    return totals;
+  }, []);
+
   const load = useCallback(async (date: string) => {
     setLoading(true);
-    const { data } = await supabase
-      .from('reservation_projections')
-      .select('*')
-      .eq('projection_date', date);
+    const [{ data }, resv, proj, di, lv, no, cq] = await Promise.all([
+      supabase.from('reservation_projections').select('*').eq('projection_date', date),
+      fetchFileRows(date, 'reservations'),
+      fetchFileRows(date, 'projection'),
+      fetchFileRows(date, 'di'),
+      fetchFileRows(date, 'lv'),
+      fetchFileRows(date, 'no'),
+      fetchFileRows(date, 'cq'),
+    ]);
+
+    const available: Record<string, number> = {};
+    for (const counts of [di, lv, no, cq]) {
+      for (const [cat, val] of Object.entries(counts)) {
+        available[cat] = (available[cat] ?? 0) + val;
+      }
+    }
 
     const rows: Projection[] = VEHICLE_CATEGORIES.map((cat) => {
       const existing = data?.find((r: Projection) => r.category === cat);
-      return existing ?? {
+      const fromFileRes = resv[cat] ?? 0;
+      const fromFileProj = proj[cat] ?? 0;
+      const fromFileAvail = available[cat] ?? 0;
+
+      if (existing) {
+        return {
+          ...existing,
+          reservations_count: fromFileRes > 0 ? fromFileRes : existing.reservations_count,
+          projection: fromFileProj > 0 ? fromFileProj : (existing.projection ?? 0),
+          available_vehicles: fromFileAvail > 0 ? fromFileAvail : (existing.available_vehicles ?? 0),
+        };
+      }
+      return {
         category: cat,
-        reservations_count: 0,
+        reservations_count: fromFileRes,
         no_show_rate: 0,
-        available_vehicles: 0,
-        projection: 0,
+        available_vehicles: fromFileAvail,
+        projection: fromFileProj,
         projection_date: date,
       };
     });
 
     setProjections(rows);
     setLoading(false);
-  }, []);
+  }, [fetchFileRows]);
 
   useEffect(() => {
     if (valid) load(selectedDate);
@@ -142,8 +201,27 @@ export default function ProjectionDashboard() {
   const nextDate = addDays(selectedDate, 1);
   const hasNext = nextDate <= todayISO();
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <style>{`
+        @media print {
+          body * { visibility: hidden !important; }
+          #print-card, #print-card * { visibility: visible !important; }
+          #print-card {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            background: white !important;
+            padding: 24px !important;
+            z-index: 99999 !important;
+          }
+        }
+      `}</style>
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -180,6 +258,16 @@ export default function ProjectionDashboard() {
                 title="Próximo dia"
               >
                 <ArrowRight className="w-4 h-4 text-gray-600" />
+              </button>
+            )}
+            {!loading && activeProjections.length > 0 && (
+              <button
+                onClick={handlePrint}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
+                title="Gerar print para WhatsApp"
+              >
+                <Camera className="w-4 h-4" />
+                <span className="hidden sm:inline">Print</span>
               </button>
             )}
           </div>
@@ -338,6 +426,20 @@ export default function ProjectionDashboard() {
         <span>Somente visualização — dados atualizados diariamente</span>
         <span>{formatDateBR(selectedDate)}</span>
       </footer>
+
+      <div id="print-card" ref={printCardRef} style={{ position: 'absolute', left: '-9999px', top: 0, pointerEvents: 'none' }}>
+        <PrintCard
+          date={selectedDate}
+          projections={activeProjections}
+          totalReservations={totalReservations}
+          totalEstimated={totalEstimated}
+          totalNoShow={totalNoShow}
+          totalAvailable={totalAvailable}
+          totalProjection={totalProjection}
+          totalBalance={totalBalance}
+          avgNoShow={avgNoShow}
+        />
+      </div>
     </div>
   );
 }
@@ -415,6 +517,96 @@ function HistoryChart({ dates }: { dates: string[] }) {
           <Line type="monotone" dataKey="Saldo" stroke="#f97316" strokeWidth={2} dot={{ r: 3 }} strokeDasharray="4 4" />
         </LineChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+interface PrintCardProps {
+  date: string;
+  projections: Projection[];
+  totalReservations: number;
+  totalEstimated: number;
+  totalNoShow: number;
+  totalAvailable: number;
+  totalProjection: number;
+  totalBalance: number;
+  avgNoShow: number;
+}
+
+function PrintCard({ date, projections, totalReservations, totalEstimated, totalNoShow, totalAvailable, totalProjection, totalBalance, avgNoShow }: PrintCardProps) {
+  const now = new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div style={{ fontFamily: 'Arial, sans-serif', background: '#fff', color: '#111', padding: '20px', maxWidth: '600px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '2px solid #1d4ed8', paddingBottom: '12px' }}>
+        <div>
+          <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#1d4ed8' }}>Projeção de Frota</div>
+          <div style={{ fontSize: '13px', color: '#555' }}>Data: {formatDateBR(date)}</div>
+        </div>
+        <div style={{ fontSize: '11px', color: '#888' }}>Gerado em {now}</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '16px' }}>
+        {[
+          { label: 'Reservas', value: totalReservations, color: '#1d4ed8' },
+          { label: 'Utilização Est.', value: totalEstimated, color: '#16a34a' },
+          { label: 'No-Show Est.', value: totalNoShow, color: '#dc2626' },
+          { label: 'Tx. No-Show', value: `${avgNoShow.toFixed(1)}%`, color: '#ea580c' },
+          { label: 'Disponível+Proj.', value: totalAvailable + totalProjection, color: '#0284c7' },
+          { label: 'Saldo Total', value: totalBalance > 0 ? `+${totalBalance}` : String(totalBalance), color: totalBalance >= 0 ? '#16a34a' : '#dc2626' },
+        ].map((s) => (
+          <div key={s.label} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '8px', textAlign: 'center' }}>
+            <div style={{ fontSize: '10px', color: '#64748b', marginBottom: '2px' }}>{s.label}</div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: s.color }}>{s.value}</div>
+          </div>
+        ))}
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+        <thead>
+          <tr style={{ background: '#1d4ed8', color: '#fff' }}>
+            {['Grupo', 'Reservas', 'Tx NSH', 'Utiliz.', 'Disp.', 'Proj.', 'Saldo'].map((h) => (
+              <th key={h} style={{ padding: '6px 8px', textAlign: 'center', fontWeight: 'bold' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {projections.map((p, i) => {
+            const estimated = computeEstimatedUsage(p.reservations_count, p.no_show_rate);
+            const balance = p.available_vehicles + p.projection - estimated;
+            return (
+              <tr key={p.category} style={{ background: i % 2 === 0 ? '#f8fafc' : '#fff', borderBottom: '1px solid #e2e8f0' }}>
+                <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 'bold', color: '#1d4ed8' }}>{p.category}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center' }}>{p.reservations_count || '—'}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center', color: '#ea580c' }}>{p.reservations_count > 0 ? `${p.no_show_rate}%` : '—'}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center', color: '#16a34a' }}>{estimated || '—'}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center' }}>{p.available_vehicles || '—'}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center' }}>{p.projection || '—'}</td>
+                <td style={{ padding: '5px 8px', textAlign: 'center', fontWeight: 'bold', color: balance > 0 ? '#1d4ed8' : balance < 0 ? '#dc2626' : '#64748b' }}>
+                  {balance > 0 ? `+${balance}` : balance}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr style={{ background: '#1e3a5f', color: '#fff', fontWeight: 'bold' }}>
+            <td style={{ padding: '6px 8px', textAlign: 'center' }}>TOTAL</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center' }}>{totalReservations || '—'}</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center', color: '#fbbf24' }}>{totalReservations > 0 ? `${avgNoShow.toFixed(1)}%` : '—'}</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center', color: '#86efac' }}>{totalEstimated || '—'}</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center' }}>{totalAvailable || '—'}</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center' }}>{totalProjection || '—'}</td>
+            <td style={{ padding: '6px 8px', textAlign: 'center', color: totalBalance > 0 ? '#86efac' : totalBalance < 0 ? '#fca5a5' : '#d1d5db' }}>
+              {totalBalance > 0 ? `+${totalBalance}` : totalBalance}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div style={{ marginTop: '14px', fontSize: '10px', color: '#94a3b8', textAlign: 'center', borderTop: '1px solid #e2e8f0', paddingTop: '8px' }}>
+        Sistema de Gestão de Frota — Dados de {formatDateBR(date)}
+      </div>
     </div>
   );
 }
