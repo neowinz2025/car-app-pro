@@ -1,4 +1,4 @@
-import { TrendingDown, Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle } from 'lucide-react';
+import { Save, ChartBar as BarChart3, Car, CircleAlert as AlertCircle, TrendingDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -25,6 +25,9 @@ export function ReservationProjectionsView() {
   }
 
   const totalNoShow = totalReservations - totalEstimated;
+  const totalAvailable = projections.reduce((s, p) => s + p.available_vehicles, 0);
+  const totalProjection = projections.reduce((s, p) => s + p.projection, 0);
+  const totalBalance = totalAvailable + totalProjection - totalEstimated;
 
   return (
     <div className="space-y-6">
@@ -92,7 +95,7 @@ export function ReservationProjectionsView() {
             <div>
               <CardTitle>Categorias de Veículos</CardTitle>
               <CardDescription>
-                Informe as reservas futuras e a taxa de no-show para cada categoria
+                Preencha os campos para calcular a projeção por categoria
               </CardDescription>
             </div>
             <Button onClick={saveAll} disabled={saving} className="gap-2">
@@ -106,36 +109,49 @@ export function ReservationProjectionsView() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground w-24">
-                    Categoria
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground w-20">
+                    GRUPOS
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Reservas Futuras
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    RESERVAS
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Taxa No-Show (%)
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    TX NSH
                   </th>
-                  <th className="text-left py-3 px-4 font-semibold text-muted-foreground">
-                    Utilização Estimada
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    DI/NO
+                  </th>
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    PROJEÇÃO
+                  </th>
+                  <th className="text-center py-3 px-3 font-semibold text-muted-foreground">
+                    TX
+                  </th>
+                  <th className="text-center py-3 px-3 font-semibold w-24">
+                    TOTAL
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {projections.map((proj) => {
                   const estimated = computeEstimatedUsage(proj.reservations_count, proj.no_show_rate);
-                  const hasData = proj.reservations_count > 0;
+                  const balance = proj.available_vehicles + proj.projection - estimated;
+                  const hasAnyData =
+                    proj.reservations_count > 0 ||
+                    proj.available_vehicles > 0 ||
+                    proj.projection > 0;
 
                   return (
                     <tr
                       key={proj.category}
                       className="border-b border-border last:border-0 hover:bg-muted/30 transition-colors"
                     >
-                      <td className="py-3 px-4">
+                      <td className="py-2 px-3 text-center">
                         <span className="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-primary/10 text-primary font-bold text-sm">
                           {proj.category}
                         </span>
                       </td>
-                      <td className="py-2 px-4">
+                      <td className="py-1.5 px-3">
                         <Input
                           type="number"
                           min={0}
@@ -148,11 +164,11 @@ export function ReservationProjectionsView() {
                               Math.max(0, parseInt(e.target.value) || 0)
                             )
                           }
-                          className="w-32 h-9 text-center font-medium"
+                          className="w-24 h-8 text-center font-medium mx-auto block"
                         />
                       </td>
-                      <td className="py-2 px-4">
-                        <div className="flex items-center gap-2">
+                      <td className="py-1.5 px-3">
+                        <div className="flex items-center justify-center gap-1">
                           <Input
                             type="number"
                             min={0}
@@ -167,21 +183,63 @@ export function ReservationProjectionsView() {
                                 Math.min(100, Math.max(0, parseFloat(e.target.value) || 0))
                               )
                             }
-                            className="w-28 h-9 text-center font-medium"
+                            className="w-20 h-8 text-center font-medium"
                           />
-                          <span className="text-muted-foreground text-xs font-medium">%</span>
+                          <span className="text-muted-foreground text-xs">%</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4">
-                        {hasData ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-green-600">{estimated}</span>
-                            {proj.no_show_rate > 0 && (
-                              <span className="text-xs text-muted-foreground">
-                                (-{proj.reservations_count - estimated})
-                              </span>
-                            )}
-                          </div>
+                      <td className="py-1.5 px-3">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={proj.available_vehicles === 0 ? '' : proj.available_vehicles}
+                          placeholder="0"
+                          onChange={(e) =>
+                            updateProjection(
+                              proj.category,
+                              'available_vehicles',
+                              Math.max(0, parseInt(e.target.value) || 0)
+                            )
+                          }
+                          className="w-24 h-8 text-center font-medium mx-auto block"
+                        />
+                      </td>
+                      <td className="py-1.5 px-3">
+                        <Input
+                          type="number"
+                          min={0}
+                          value={proj.projection === 0 ? '' : proj.projection}
+                          placeholder="0"
+                          onChange={(e) =>
+                            updateProjection(
+                              proj.category,
+                              'projection',
+                              Math.max(0, parseInt(e.target.value) || 0)
+                            )
+                          }
+                          className="w-24 h-8 text-center font-medium mx-auto block"
+                        />
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        {proj.reservations_count > 0 ? (
+                          <span className="font-bold text-sm">{estimated}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        {hasAnyData ? (
+                          <span
+                            className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
+                              balance > 0
+                                ? 'bg-blue-500/10 text-blue-600'
+                                : balance < 0
+                                ? 'bg-red-500/10 text-red-600'
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {balance > 0 ? `+${balance}` : balance}
+                          </span>
                         ) : (
                           <span className="text-muted-foreground">—</span>
                         )}
@@ -190,22 +248,46 @@ export function ReservationProjectionsView() {
                   );
                 })}
               </tbody>
-              {totalReservations > 0 && (
-                <tfoot>
-                  <tr className="border-t-2 border-border bg-muted/30">
-                    <td className="py-3 px-4 font-bold text-sm">TOTAL</td>
-                    <td className="py-3 px-4 font-bold text-sm">{totalReservations}</td>
-                    <td className="py-3 px-4 font-bold text-sm text-orange-500">
-                      {avgNoShow.toFixed(1)}% <span className="text-xs font-normal text-muted-foreground">(média)</span>
-                    </td>
-                    <td className="py-3 px-4 font-bold text-sm text-green-600">{totalEstimated}</td>
-                  </tr>
-                </tfoot>
-              )}
+              <tfoot>
+                <tr className="border-t-2 border-border bg-muted/40 font-bold">
+                  <td className="py-3 px-3 text-center text-sm">TOTAL</td>
+                  <td className="py-3 px-3 text-center text-sm">{totalReservations || '—'}</td>
+                  <td className="py-3 px-3 text-center text-sm text-orange-500">
+                    {totalReservations > 0 ? `${avgNoShow.toFixed(1)}%` : '—'}
+                  </td>
+                  <td className="py-3 px-3 text-center text-sm">{totalAvailable || '—'}</td>
+                  <td className="py-3 px-3 text-center text-sm">{totalProjection || '—'}</td>
+                  <td className="py-3 px-3 text-center text-sm text-green-600">{totalEstimated || '—'}</td>
+                  <td className="py-3 px-3 text-center">
+                    <span
+                      className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
+                        totalBalance > 0
+                          ? 'bg-blue-500/10 text-blue-600'
+                          : totalBalance < 0
+                          ? 'bg-red-500/10 text-red-600'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {totalBalance > 0 ? `+${totalBalance}` : totalBalance || '—'}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </CardContent>
       </Card>
+
+      <div className="flex items-center gap-6 text-xs text-muted-foreground px-1">
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-4 rounded bg-blue-500/20 border border-blue-300" />
+          <span>Sobra de veículos (TOTAL positivo)</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="inline-block w-4 h-4 rounded bg-red-500/20 border border-red-300" />
+          <span>Falta de veículos (TOTAL negativo)</span>
+        </div>
+      </div>
     </div>
   );
 }

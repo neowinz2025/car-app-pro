@@ -13,6 +13,8 @@ export interface ReservationProjection {
   category: string;
   reservations_count: number;
   no_show_rate: number;
+  available_vehicles: number;
+  projection: number;
 }
 
 export function computeEstimatedUsage(reservations: number, noShowRate: number): number {
@@ -25,6 +27,8 @@ export function useReservationProjections() {
       category: cat,
       reservations_count: 0,
       no_show_rate: 0,
+      available_vehicles: 0,
+      projection: 0,
     }))
   );
   const [loading, setLoading] = useState(true);
@@ -48,8 +52,10 @@ export function useReservationProjections() {
                 category: existing.category,
                 reservations_count: existing.reservations_count,
                 no_show_rate: Number(existing.no_show_rate),
+                available_vehicles: existing.available_vehicles ?? 0,
+                projection: existing.projection ?? 0,
               }
-            : { category: cat, reservations_count: 0, no_show_rate: 0 };
+            : { category: cat, reservations_count: 0, no_show_rate: 0, available_vehicles: 0, projection: 0 };
         })
       );
     } catch (err) {
@@ -64,7 +70,7 @@ export function useReservationProjections() {
     load();
   }, [load]);
 
-  const updateProjection = (category: string, field: 'reservations_count' | 'no_show_rate', value: number) => {
+  const updateProjection = (category: string, field: 'reservations_count' | 'no_show_rate' | 'available_vehicles' | 'projection', value: number) => {
     setProjections((prev) =>
       prev.map((p) => (p.category === category ? { ...p, [field]: value } : p))
     );
@@ -78,6 +84,8 @@ export function useReservationProjections() {
         category: p.category,
         reservations_count: p.reservations_count,
         no_show_rate: p.no_show_rate,
+        available_vehicles: p.available_vehicles,
+        projection: p.projection,
         updated_at: new Date().toISOString(),
       }));
 
