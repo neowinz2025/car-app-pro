@@ -14,15 +14,21 @@ export const KNOWN_GRUPOS = [
 function normalizeDateToken(raw: string): string {
   const m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (!m) return '';
-  const day = m[1].padStart(2, '0');
-  const month = m[2].padStart(2, '0');
-  return `${day}/${month}/${m[3]}`;
+  const part1 = m[1].padStart(2, '0');
+  const part2 = m[2].padStart(2, '0');
+  return `${part1}/${part2}/${m[3]}`;
 }
 
 export function isoToDisplayDate(iso: string): string {
   if (!iso) return '';
   const [y, mo, d] = iso.split('-');
   return `${d}/${mo}/${y}`;
+}
+
+function isoToAmericanDate(iso: string): string {
+  if (!iso) return '';
+  const [y, mo, d] = iso.split('-');
+  return `${mo}/${d}/${y}`;
 }
 
 type PageRow = { x: number; str: string }[];
@@ -131,7 +137,7 @@ export async function parsePDFByGrupo(
   buffer: ArrayBuffer,
   filterDateISO: string | null = null
 ): Promise<Record<string, number>> {
-  const filterDate = filterDateISO ? isoToDisplayDate(filterDateISO) : null;
+  const filterDate = filterDateISO ? isoToAmericanDate(filterDateISO) : null;
 
   const loadingTask = pdfjsLib.getDocument({ data: buffer });
   const pdf = await loadingTask.promise;
@@ -167,22 +173,22 @@ export function parseSpreadsheetRowsByDate(
   dateColumnKey: string,
   filterDateISO: string | null
 ): Record<string, number> {
-  const filterDate = filterDateISO ? isoToDisplayDate(filterDateISO) : null;
+  const filterDateBR = filterDateISO ? isoToDisplayDate(filterDateISO) : null;
+  const filterDateUS = filterDateISO ? isoToAmericanDate(filterDateISO) : null;
   const counts: Record<string, number> = {};
 
   for (const row of rows) {
     const grupo = (row['Grupo'] ?? '').trim();
     if (!grupo) continue;
 
-    if (filterDate && dateColumnKey) {
+    if (filterDateBR && dateColumnKey) {
       const rawDate = (row[dateColumnKey] ?? '').trim();
       const normalized = normalizeDateToken(rawDate) || rawDate;
-      if (normalized !== filterDate) continue;
+      if (normalized !== filterDateBR && normalized !== filterDateUS) continue;
     }
 
     counts[grupo] = (counts[grupo] ?? 0) + 1;
   }
-
 
   return counts;
 }
