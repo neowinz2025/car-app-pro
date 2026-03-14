@@ -191,6 +191,14 @@ export function ReservationProjectionsView() {
   const [noFiles, setNoFiles] = useState<ImportedFile[]>([]);
   const [cqFiles, setCqFiles] = useState<ImportedFile[]>([]);
 
+  const handleChangeDate = (date: string) => {
+    setDiFiles([]);
+    setLvFiles([]);
+    setNoFiles([]);
+    setCqFiles([]);
+    changeDate(date);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center py-16">
@@ -222,7 +230,7 @@ export function ReservationProjectionsView() {
                 <p className="text-xs font-semibold text-muted-foreground mb-1.5 uppercase tracking-wide">
                   Data da Projeção
                 </p>
-                <DateSelector value={selectedDate} onChange={changeDate} />
+                <DateSelector value={selectedDate} onChange={handleChangeDate} />
               </div>
               <div className="h-8 w-px bg-border hidden md:block" />
               <p className="text-xs text-muted-foreground">
@@ -343,6 +351,7 @@ export function ReservationProjectionsView() {
             </p>
             <div className="flex flex-wrap gap-5">
               <SpreadsheetImportButton
+                key={`reservas-${selectedDate}`}
                 label="Reservas"
                 type="reservations"
                 dateHint="Data Ret."
@@ -350,6 +359,7 @@ export function ReservationProjectionsView() {
                 onImport={importSpreadsheet}
               />
               <SpreadsheetImportButton
+                key={`retorno-${selectedDate}`}
                 label="Projeção de Retorno"
                 type="projection"
                 dateHint="Data Dev."
