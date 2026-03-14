@@ -31,6 +31,12 @@ function isoToAmericanDate(iso: string): string {
   return `${mo}/${d}/${y}`;
 }
 
+function brDateToISO(br: string): string {
+  const m = br.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return '';
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
 type PageRow = { x: number; str: string }[];
 
 async function extractPageRows(pdf: pdfjsLib.PDFDocumentProxy, pageNum: number): Promise<PageRow[]> {
@@ -106,6 +112,48 @@ function parseRowsWithDateFilter(
   return counts;
 }
 
+function parseRowsByAllDates(
+  allPageRows: PageRow[][],
+  headerPageIdx: number,
+  headerRowIdx: number,
+  headerTokens: string[]
+): Record<string, Record<string, number>> {
+  const grupoIdx = headerTokens.indexOf('Grupo');
+
+  const dateColNames = ['Data Ret.', 'Data Dev.', 'Data Res.'];
+  let dateIdx = -1;
+  for (const name of dateColNames) {
+    const idx = headerTokens.indexOf(name);
+    if (idx !== -1) { dateIdx = idx; break; }
+  }
+
+  const byDate: Record<string, Record<string, number>> = {};
+
+  for (let pi = headerPageIdx; pi < allPageRows.length; pi++) {
+    const startRow = pi === headerPageIdx ? headerRowIdx + 1 : 0;
+    for (let ri = startRow; ri < allPageRows[pi].length; ri++) {
+      const tokens = rowToTokens(allPageRows[pi][ri]);
+      if (tokens.length <= grupoIdx) continue;
+      const grupo = tokens[grupoIdx];
+      if (!KNOWN_GRUPOS.includes(grupo)) continue;
+
+      let dateISO = 'sem-data';
+      if (dateIdx !== -1 && tokens.length > dateIdx) {
+        const rawDate = normalizeDateToken(tokens[dateIdx]);
+        if (rawDate) {
+          const converted = brDateToISO(rawDate);
+          if (converted) dateISO = converted;
+        }
+      }
+
+      if (!byDate[dateISO]) byDate[dateISO] = {};
+      byDate[dateISO][grupo] = (byDate[dateISO][grupo] ?? 0) + 1;
+    }
+  }
+
+  return byDate;
+}
+
 function fallbackExtract(allPageRows: PageRow[][], filterDate: string | null): Record<string, number> {
   const counts: Record<string, number> = {};
   for (const rows of allPageRows) {
@@ -131,6 +179,37 @@ function fallbackExtract(allPageRows: PageRow[][], filterDate: string | null): R
     }
   }
   return counts;
+}
+
+function fallbackExtractAllDates(allPageRows: PageRow[][]): Record<string, Record<string, number>> {
+  const byDate: Record<string, Record<string, number>> = {};
+  for (const rows of allPageRows) {
+    for (const row of rows) {
+      const tokens = rowToTokens(row);
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        if (!KNOWN_GRUPOS.includes(token)) continue;
+        const prev = tokens[i - 1] ?? '';
+        const next = tokens[i + 1] ?? '';
+        const looksLikePlate =
+          /^[A-Z]{3}\d[A-Z\d]\d{2}$/.test(prev) || /^[A-Z]{3}\d{4}$/.test(prev);
+        const nextIsModel = /^[A-Z]/.test(next) && next.length > 2;
+        if (!looksLikePlate && !nextIsModel) continue;
+
+        const dateToken = tokens.find((t) => normalizeDateToken(t) !== '');
+        let dateISO = 'sem-data';
+        if (dateToken) {
+          const normalized = normalizeDateToken(dateToken);
+          const converted = brDateToISO(normalized);
+          if (converted) dateISO = converted;
+        }
+
+        if (!byDate[dateISO]) byDate[dateISO] = {};
+        byDate[dateISO][token] = (byDate[dateISO][token] ?? 0) + 1;
+      }
+    }
+  }
+  return byDate;
 }
 
 export async function parsePDFByGrupo(
@@ -168,6 +247,42 @@ export async function parsePDFByGrupo(
   return counts;
 }
 
+export async function parsePDFByGrupoAllDates(
+  buffer: ArrayBuffer
+): Promise<Record<string, Record<string, number>>> {
+  const loadingTask = pdfjsLib.getDocument({ data: buffer });
+  const pdf = await loadingTask.promise;
+
+  const allPageRows: PageRow[][] = [];
+  for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+    allPageRows.push(await extractPageRows(pdf, pageNum));
+  }
+
+  const header = findHeaderRow(allPageRows);
+
+  if (!header) {
+    return fallbackExtractAllDates(allPageRows);
+  }
+
+  const byDate = parseRowsByAllDates(
+    allPageRows,
+    header.pageIdx,
+    header.rowIdx,
+    header.tokens
+  );
+
+  const total = Object.values(byDate).reduce(
+    (s, counts) => s + Object.values(counts).reduce((a, b) => a + b, 0),
+    0
+  );
+
+  if (total === 0) {
+    return fallbackExtractAllDates(allPageRows);
+  }
+
+  return byDate;
+}
+
 export function parseSpreadsheetRowsByDate(
   rows: Record<string, string>[],
   dateColumnKey: string,
@@ -191,4 +306,38 @@ export function parseSpreadsheetRowsByDate(
   }
 
   return counts;
+}
+
+export function parseSpreadsheetRowsByAllDates(
+  rows: Record<string, string>[],
+  dateColumnKey: string
+): Record<string, Record<string, number>> {
+  const byDate: Record<string, Record<string, number>> = {};
+
+  for (const row of rows) {
+    const grupo = (row['Grupo'] ?? '').trim();
+    if (!grupo) continue;
+
+    let dateISO = 'sem-data';
+    if (dateColumnKey) {
+      const rawDate = (row[dateColumnKey] ?? '').trim();
+      const normalized = normalizeDateToken(rawDate) || rawDate;
+      const converted = brDateToISO(normalized);
+      if (converted) {
+        dateISO = converted;
+      } else if (rawDate) {
+        const usMatch = rawDate.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (usMatch) {
+          const asBR = `${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`;
+          const isoFromUS = brDateToISO(asBR);
+          if (isoFromUS) dateISO = isoFromUS;
+        }
+      }
+    }
+
+    if (!byDate[dateISO]) byDate[dateISO] = {};
+    byDate[dateISO][grupo] = (byDate[dateISO][grupo] ?? 0) + 1;
+  }
+
+  return byDate;
 }

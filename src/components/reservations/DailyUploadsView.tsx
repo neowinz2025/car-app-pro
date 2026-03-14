@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Upload, Trash2, FileSpreadsheet, FileText, RefreshCw, CircleCheck as CheckCircle2, Clock } from 'lucide-react';
+import { CalendarDays, Upload, Trash2, FileSpreadsheet, FileText, RefreshCw, CircleCheck as CheckCircle2, Clock, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useFileUploads, FileType } from '@/hooks/useFileUploads';
@@ -78,7 +78,7 @@ const BADGE_MAP: Record<string, string> = {
 interface UploadCardProps {
   fileType: typeof FILE_TYPES[number];
   uploadDate: string;
-  existingFiles: { id: string; file_name: string; row_count: number; uploaded_at: string }[];
+  existingFiles: { id: string; file_name: string; row_count: number; uploaded_at: string; upload_date: string }[];
   onUpload: (file: File, type: FileType, date: string) => Promise<boolean>;
   onDelete: (id: string, date: string) => void;
   uploading: boolean;
@@ -197,6 +197,41 @@ export function DailyUploadsView() {
 
   return (
     <div className="space-y-6">
+      <Card className="border border-blue-100 bg-blue-50/50">
+        <CardContent className="pt-4 pb-4">
+          <div className="flex items-start gap-3">
+            <Info className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+            <p className="text-sm text-blue-700">
+              Ao enviar um arquivo, os dados sao distribuídos automaticamente para cada data encontrada dentro do arquivo. Não é necessário selecionar a data antes de enviar.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle>Enviar Arquivos</CardTitle>
+          <CardDescription>
+            Envie os arquivos completos (com múltiplas datas). Os dados serão distribuídos automaticamente por data.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {FILE_TYPES.map((ft) => (
+              <UploadCard
+                key={ft.key}
+                fileType={ft}
+                uploadDate={selectedDate}
+                existingFiles={getFilesForType(ft.key)}
+                onUpload={uploadFile}
+                onDelete={deleteUpload}
+                uploading={uploading}
+              />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border border-border bg-muted/10">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
@@ -204,7 +239,7 @@ export function DailyUploadsView() {
               <CalendarDays className="w-4 h-4 text-muted-foreground" />
               <div>
                 <p className="text-xs font-semibold text-muted-foreground mb-1 uppercase tracking-wide">
-                  Data dos Arquivos
+                  Visualizar arquivos da data
                 </p>
                 <input
                   type="date"
@@ -232,41 +267,67 @@ export function DailyUploadsView() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle>Arquivos de {formatDateBR(selectedDate)}</CardTitle>
-          <CardDescription>
-            Envie os arquivos diários aqui. Os dados ficam salvos no banco e a tela de
-            Projeções carrega automaticamente ao selecionar a data.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {FILE_TYPES.map((ft) => (
-              <UploadCard
-                key={ft.key}
-                fileType={ft}
-                uploadDate={selectedDate}
-                existingFiles={getFilesForType(ft.key)}
-                onUpload={uploadFile}
-                onDelete={deleteUpload}
-                uploading={uploading}
-              />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="text-xs text-muted-foreground px-1 space-y-1">
-        <p>
-          Os dados extraídos ficam armazenados no banco de dados vinculados à data selecionada.
-        </p>
-        <p>
-          Na tela de <strong>Projeções</strong>, ao selecionar uma data, os valores de Reservas,
-          Projeção de Retorno e Disponível (NO/DI) são preenchidos automaticamente a partir dos
-          arquivos já enviados.
-        </p>
-      </div>
+      {totalFiles > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle>Arquivos de {formatDateBR(selectedDate)}</CardTitle>
+            <CardDescription>
+              Arquivos que foram importados com dados para esta data.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {FILE_TYPES.map((ft) => {
+                const files = getFilesForType(ft.key);
+                if (files.length === 0) return null;
+                const colorClass = COLOR_MAP[ft.color];
+                const badgeClass = BADGE_MAP[ft.color];
+                return (
+                  <div key={ft.key} className={`rounded-lg border p-4 ${colorClass}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeClass}`}>
+                        {ft.label}
+                      </span>
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    </div>
+                    <div className="space-y-1.5">
+                      {files.map((f) => (
+                        <div
+                          key={f.id}
+                          className="flex items-center justify-between gap-2 bg-white/70 rounded-md px-2.5 py-1.5"
+                        >
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {f.file_name.toLowerCase().endsWith('.pdf') ? (
+                              <FileText className="w-3.5 h-3.5 shrink-0 text-red-500" />
+                            ) : (
+                              <FileSpreadsheet className="w-3.5 h-3.5 shrink-0 text-green-600" />
+                            )}
+                            <span className="text-xs font-medium truncate max-w-[120px]">{f.file_name}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{f.row_count} veíc.</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              {formatTime(f.uploaded_at)}
+                            </span>
+                            <button
+                              onClick={() => deleteUpload(f.id, selectedDate)}
+                              className="text-muted-foreground hover:text-destructive transition-colors"
+                              title="Remover arquivo"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

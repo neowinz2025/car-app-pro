@@ -2,8 +2,8 @@ import { useState, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import { supabase } from '@/integrations/supabase/client';
 import {
-  parsePDFByGrupo,
-  parseSpreadsheetRowsByDate,
+  parsePDFByGrupoAllDates,
+  parseSpreadsheetRowsByAllDates,
 } from '@/lib/pdfFleetParser';
 import { toast } from 'sonner';
 
@@ -50,21 +50,20 @@ function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
   });
 }
 
-async function extractCountsFromFile(
+async function extractCountsByAllDates(
   data: string | ArrayBuffer,
   isPDF: boolean,
   isXLSX: boolean,
   fileType: FileType,
-  uploadDate: string
-): Promise<Record<string, number>> {
+): Promise<Record<string, Record<string, number>>> {
   if (isPDF) {
-    return parsePDFByGrupo(data as ArrayBuffer, uploadDate);
+    return parsePDFByGrupoAllDates(data as ArrayBuffer);
   }
   const rows = isXLSX
     ? parseXLSXRows(data as ArrayBuffer)
     : parseCSVRows(data as string);
   const dateCol = DATE_COL[fileType];
-  return parseSpreadsheetRowsByDate(rows, dateCol ?? '', uploadDate);
+  return parseSpreadsheetRowsByAllDates(rows, dateCol ?? '');
 }
 
 export function useFileUploads() {
@@ -114,47 +113,86 @@ export function useFileUploads() {
           }
         });
 
-        const counts = await extractCountsFromFile(data, isPDF, isXLSX, fileType, uploadDate);
-        const totalCount = Object.values(counts).reduce((s, v) => s + v, 0);
+        const byDate = await extractCountsByAllDates(data, isPDF, isXLSX, fileType);
 
-        if (totalCount === 0) {
-          toast.error(
-            `Nenhum veículo encontrado em "${file.name}" para ${uploadDate.split('-').reverse().join('/')}. Verifique se o arquivo contém dados para essa data.`
-          );
-          return false;
-        }
+        const dates = Object.keys(byDate).filter((d) => d !== 'sem-data');
 
-        const { data: uploadRow, error: uploadError } = await supabase
-          .from('daily_file_uploads' as never)
-          .insert({
+        if (dates.length === 0) {
+          const semDataCounts = byDate['sem-data'];
+          if (!semDataCounts || Object.values(semDataCounts).reduce((s, v) => s + v, 0) === 0) {
+            toast.error(
+              `Nenhum veículo encontrado em "${file.name}". Verifique se o arquivo está no formato correto.`
+            );
+            return false;
+          }
+          const totalCount = Object.values(semDataCounts).reduce((s, v) => s + v, 0);
+          const { data: uploadRow, error: uploadError } = await supabase
+            .from('daily_file_uploads' as never)
+            .insert({
+              upload_date: uploadDate,
+              file_type: fileType,
+              file_name: file.name,
+              row_count: totalCount,
+            } as never)
+            .select()
+            .single();
+          if (uploadError) throw uploadError;
+          const uploadId = (uploadRow as { id: string }).id;
+          const rowsToInsert = Object.entries(semDataCounts).map(([category, count]) => ({
+            upload_id: uploadId,
             upload_date: uploadDate,
             file_type: fileType,
-            file_name: file.name,
-            row_count: totalCount,
-          } as never)
-          .select()
-          .single();
-
-        if (uploadError) throw uploadError;
-
-        const uploadId = (uploadRow as { id: string }).id;
-
-        const rowsToInsert = Object.entries(counts).map(([category, count]) => ({
-          upload_id: uploadId,
-          upload_date: uploadDate,
-          file_type: fileType,
-          category,
-          count,
-        }));
-
-        if (rowsToInsert.length > 0) {
-          const { error: rowsError } = await supabase
-            .from('daily_file_rows' as never)
-            .insert(rowsToInsert as never);
-          if (rowsError) throw rowsError;
+            category,
+            count,
+          }));
+          if (rowsToInsert.length > 0) {
+            const { error: rowsError } = await supabase
+              .from('daily_file_rows' as never)
+              .insert(rowsToInsert as never);
+            if (rowsError) throw rowsError;
+          }
+          toast.success(`"${file.name}" importado: ${totalCount} veículos (sem data definida → ${uploadDate.split('-').reverse().join('/')})`);
+          await loadUploads(uploadDate);
+          return true;
         }
 
-        toast.success(`"${file.name}" importado: ${totalCount} veículos`);
+        let totalVehicles = 0;
+        for (const date of dates) {
+          const counts = byDate[date];
+          const totalCount = Object.values(counts).reduce((s, v) => s + v, 0);
+          totalVehicles += totalCount;
+
+          const { data: uploadRow, error: uploadError } = await supabase
+            .from('daily_file_uploads' as never)
+            .insert({
+              upload_date: date,
+              file_type: fileType,
+              file_name: file.name,
+              row_count: totalCount,
+            } as never)
+            .select()
+            .single();
+          if (uploadError) throw uploadError;
+          const uploadId = (uploadRow as { id: string }).id;
+
+          const rowsToInsert = Object.entries(counts).map(([category, count]) => ({
+            upload_id: uploadId,
+            upload_date: date,
+            file_type: fileType,
+            category,
+            count,
+          }));
+          if (rowsToInsert.length > 0) {
+            const { error: rowsError } = await supabase
+              .from('daily_file_rows' as never)
+              .insert(rowsToInsert as never);
+            if (rowsError) throw rowsError;
+          }
+        }
+
+        toast.success(
+          `"${file.name}" importado: ${totalVehicles} veículos distribuídos em ${dates.length} data${dates.length !== 1 ? 's' : ''}`
+        );
         await loadUploads(uploadDate);
         return true;
       } catch (err) {
