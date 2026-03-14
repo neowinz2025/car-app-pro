@@ -306,7 +306,6 @@ export function useReservationProjections() {
 
       isDirty.current = false;
       toast.success('Projeções salvas com sucesso');
-      await load(selectedDateRef.current);
     } catch (err) {
       console.error('Error saving projections:', err);
       toast.error('Erro ao salvar projeções');

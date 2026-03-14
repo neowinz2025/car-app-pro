@@ -199,14 +199,6 @@ export function ReservationProjectionsView() {
     changeDate(date);
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-16">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-      </div>
-    );
-  }
-
   const totalNoShow = totalReservations - totalEstimated;
   const totalAvailable = projections.reduce((s, p) => s + p.available_vehicles, 0);
   const totalProjection = projections.reduce((s, p) => s + p.projection, 0);
@@ -221,7 +213,12 @@ export function ReservationProjectionsView() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 relative">
+      {loading && (
+        <div className="absolute inset-0 z-10 flex justify-center items-start pt-16 bg-background/60 backdrop-blur-sm rounded-lg">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      )}
       <Card className="border border-border bg-muted/10">
         <CardContent className="pt-4 pb-4">
           <div className="flex flex-wrap items-center gap-4 justify-between">
