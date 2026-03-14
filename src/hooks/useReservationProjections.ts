@@ -279,8 +279,9 @@ export function useReservationProjections() {
         .upsert({ key: GLOBAL_NOSHOW_KEY, value: String(rate), updated_at: new Date().toISOString() }, { onConflict: 'key' });
       await supabase
         .from('reservation_projections')
-        .upsert(buildUpsertPayload(updated, selectedDateRef.current), { onConflict: 'category,projection_date' });
-      toast.success(`No-Show global de ${rate}% aplicado e salvo`);
+        .update({ no_show_rate: rate, updated_at: new Date().toISOString() })
+        .gte('reservations_count', 0);
+      toast.success(`No-Show global de ${rate}% aplicado em todos os dias`);
     } catch (err) {
       console.error('Error saving global no-show rate:', err);
       toast.error('Erro ao salvar no-show global');
