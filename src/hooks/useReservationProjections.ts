@@ -80,6 +80,7 @@ export function useReservationProjections() {
   const [saving, setSaving] = useState(false);
   const [globalNoShowRate, setGlobalNoShowRateState] = useState<number>(0);
   const isDirty = useRef(false);
+  const loadSequence = useRef(0);
 
   const loadGlobalNoShowRate = useCallback(async (): Promise<number> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -93,12 +94,15 @@ export function useReservationProjections() {
   }, []);
 
   const load = useCallback(async (date: string) => {
+    const seq = ++loadSequence.current;
     try {
       setLoading(true);
       const [{ data, error }, globalRate] = await Promise.all([
         supabase.from('reservation_projections').select('*').eq('projection_date', date),
         loadGlobalNoShowRate(),
       ]);
+
+      if (seq !== loadSequence.current) return;
 
       if (error) throw error;
 
@@ -128,10 +132,11 @@ export function useReservationProjections() {
       projectionsRef.current = loaded;
       isDirty.current = false;
     } catch (err) {
+      if (seq !== loadSequence.current) return;
       console.error('Error loading reservation projections:', err);
       toast.error('Erro ao carregar projeções');
     } finally {
-      setLoading(false);
+      if (seq === loadSequence.current) setLoading(false);
     }
   }, [loadGlobalNoShowRate]);
 
