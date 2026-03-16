@@ -249,6 +249,29 @@ export function useFileUploads() {
           return true;
         }
 
+        // ---- LIMPA dados anteriores do mesmo tipo para as datas do novo arquivo ----
+        // Garante que re-upload substitui em vez de acumular
+        const { data: oldUploads } = await supabase
+          .from('daily_file_uploads' as never)
+          .select('id, upload_date')
+          .eq('file_type', fileType)
+          .in('upload_date' as never, dates as never);
+
+        const oldIds = ((oldUploads ?? []) as { id: string }[]).map((u) => u.id);
+        if (oldIds.length > 0) {
+          // Deleta rows antigas (cascade pelo upload_id)
+          await supabase
+            .from('daily_file_rows' as never)
+            .delete()
+            .in('upload_id' as never, oldIds as never);
+          // Deleta uploads antigos
+          await supabase
+            .from('daily_file_uploads' as never)
+            .delete()
+            .in('id' as never, oldIds as never);
+        }
+        // -------------------------------------------------------------------------
+
         const uploadRows = dates.map((date) => ({
           upload_date: date,
           file_type: fileType,
