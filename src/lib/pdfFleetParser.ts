@@ -6,9 +6,9 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
 ).toString();
 
 export const KNOWN_GRUPOS = [
-  'AM','AT','B','BS','C','CA','CX','CG','E','EA',
-  'G1','G2','I','IE','J','J2','LX','SG','SM','SP',
-  'SU','SV','T','TS','TT','VU','VC',
+  'AM', 'AT', 'B', 'BS', 'C', 'CA', 'CX', 'CG', 'E', 'EA',
+  'G1', 'G2', 'I', 'IE', 'J', 'J2', 'LX', 'SG', 'SM', 'SP',
+  'SU', 'SV', 'T', 'TS', 'TT', 'VU', 'VC',
 ];
 
 function normalizeDateToken(raw: string): string {
@@ -305,19 +305,21 @@ function resolveDateValue(row: Record<string, string>, dateColumnKey: string): s
 
 function parseDateValue(raw: string): string {
   if (!raw) return 'sem-data';
-  const normalized = normalizeDateToken(raw) || raw;
-  const brConverted = brDateToISO(normalized);
-  if (brConverted) {
-    const month = parseInt(brConverted.split('-')[1], 10);
-    if (month >= 1 && month <= 12) return brConverted;
+
+  // Normaliza separadores e espaços
+  const cleaned = raw.trim().replace(/\s+/g, '');
+
+  // Formato padrão brasileiro: DD/MM/YYYY (único formato aceito nos CSVs do sistema)
+  const normalized = normalizeDateToken(cleaned) || cleaned;
+  const isoFromBR = brDateToISO(normalized);
+  if (isoFromBR) {
+    const [, mm] = isoFromBR.split('-');
+    const month = parseInt(mm, 10);
+    if (month >= 1 && month <= 12) return isoFromBR;
   }
-  const usMatch = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (usMatch) {
-    const asBR = `${usMatch[2].padStart(2,'0')}/${usMatch[1].padStart(2,'0')}/${usMatch[3]}`;
-    const isoFromUS = brDateToISO(asBR);
-    if (isoFromUS) return isoFromUS;
-  }
-  const excelSerial = parseInt(raw, 10);
+
+  // Fallback: número serial do Excel
+  const excelSerial = parseInt(cleaned, 10);
   if (!isNaN(excelSerial) && excelSerial > 40000 && excelSerial < 60000) {
     const date = new Date((excelSerial - 25569) * 86400 * 1000);
     const y = date.getUTCFullYear();
@@ -325,6 +327,7 @@ function parseDateValue(raw: string): string {
     const d = String(date.getUTCDate()).padStart(2, '0');
     return `${y}-${m}-${d}`;
   }
+
   return 'sem-data';
 }
 
