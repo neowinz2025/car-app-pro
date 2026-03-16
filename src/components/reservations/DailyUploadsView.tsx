@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { CalendarDays, Upload, Trash2, FileSpreadsheet, FileText, RefreshCw, CircleCheck as CheckCircle2, Clock, Info } from 'lucide-react';
+import { CalendarDays, Upload, Trash2, FileSpreadsheet, FileText, RefreshCw, CircleCheck as CheckCircle2, Clock, Info, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useFileUploads, FileType } from '@/hooks/useFileUploads';
@@ -190,7 +190,8 @@ function UploadCard({ fileType, uploadDate, existingFiles, onUpload, onDelete, u
 
 export function DailyUploadsView() {
   const [selectedDate, setSelectedDate] = useState(todayISO());
-  const { uploads, uploading, loadingList, loadUploads, uploadFile, deleteUpload } = useFileUploads();
+  const [clearConfirm, setClearConfirm] = useState(false);
+  const { uploads, uploading, loadingList, loadUploads, uploadFile, deleteUpload, clearAllData } = useFileUploads();
 
   useEffect(() => {
     loadUploads(selectedDate);
@@ -214,6 +215,35 @@ export function DailyUploadsView() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Botão de emergência para limpar dados acumulados */}
+      <div className="flex justify-end">
+        {clearConfirm ? (
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-destructive font-medium">Confirme: apagar TODOS os dados do banco?</span>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => { await clearAllData(); setClearConfirm(false); }}
+            >
+              Sim, apagar tudo
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setClearConfirm(false)}>
+              Cancelar
+            </Button>
+          </div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive/40 hover:bg-destructive/10 hover:text-destructive"
+            onClick={() => setClearConfirm(true)}
+          >
+            <AlertTriangle className="w-4 h-4 mr-1" />
+            Limpar Todos os Dados do Banco
+          </Button>
+        )}
+      </div>
 
       <Card>
         <CardHeader className="pb-3">

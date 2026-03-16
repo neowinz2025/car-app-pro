@@ -368,6 +368,35 @@ export function useFileUploads() {
     []
   );
 
+  const clearAllData = useCallback(
+    async (date?: string) => {
+      try {
+        if (date) {
+          // Limpa apenas a data especificada
+          await supabase
+            .from('daily_file_rows' as never)
+            .delete()
+            .eq('upload_date' as never, date);
+          await supabase
+            .from('daily_file_uploads' as never)
+            .delete()
+            .eq('upload_date' as never, date);
+          toast.success(`Todos os dados de ${date.split('-').reverse().join('/')} foram removidos`);
+        } else {
+          // Limpa TUDO — todos os tipos e datas
+          await supabase.from('daily_file_rows' as never).delete().neq('id' as never, '00000000-0000-0000-0000-000000000000');
+          await supabase.from('daily_file_uploads' as never).delete().neq('id' as never, '00000000-0000-0000-0000-000000000000');
+          toast.success('Todos os dados de uploads foram removidos do banco');
+        }
+        setUploads([]);
+      } catch (err) {
+        console.error('Error clearing data:', err);
+        toast.error('Erro ao limpar dados');
+      }
+    },
+    []
+  );
+
   return {
     uploads,
     uploading,
@@ -375,6 +404,7 @@ export function useFileUploads() {
     loadUploads,
     uploadFile,
     deleteUpload,
+    clearAllData,
     getCountsForDate,
   };
 }
