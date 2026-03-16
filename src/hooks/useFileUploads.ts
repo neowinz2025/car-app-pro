@@ -53,16 +53,65 @@ function splitCSVLine(line: string): string[] {
   return result;
 }
 
+function parseSpreadsheetRaw(matrix: unknown[][]): Record<string, string>[] {
+  let headerRowIdx = -1;
+  let headerCols: string[] = [];
+
+  // 1. Procura qual linha contém as numerações de coluna reais ("Grupo", "Grp", etc)
+  for (let i = 0; i < matrix.length; i++) {
+    const row = matrix[i];
+    if (!Array.isArray(row)) continue;
+    const strRow = row.map(String).map((s) => s.trim().toLowerCase());
+    if (strRow.includes('grupo') || strRow.includes('grp') || strRow.includes('grpo')) {
+      headerRowIdx = i;
+      headerCols = row.map(String).map((s) => s.trim());
+      break;
+    }
+  }
+
+  if (headerRowIdx === -1) {
+    // Fallback: se não achar a palavra Grupo explícita, assume que a linha 0 é o cabeçalho
+    headerRowIdx = 0;
+    headerCols = Array.isArray(matrix[0]) ? matrix[0].map(String).map((s) => s.trim()) : [];
+  }
+
+  const parsedRows: Record<string, string>[] = [];
+  
+  // 2. Transforma as próximas linhas em JSON usando as colunas achadas
+  for (let i = headerRowIdx + 1; i < matrix.length; i++) {
+    const row = matrix[i];
+    if (!Array.isArray(row) || row.length === 0) continue;
+    
+    // Pula linhas que estão cem por cento vazias
+    if (row.every((cell) => cell === null || cell === undefined || String(cell).trim() === '')) {
+      continue;
+    }
+
+    const obj: Record<string, string> = {};
+    for (let j = 0; j < headerCols.length; j++) {
+      const colName = headerCols[j];
+      if (!colName) continue;
+      
+      const val = row[j];
+      let strVal = '';
+      if (val instanceof Date) {
+        strVal = formatExcelDate(val);
+      } else {
+        strVal = String(val ?? '').trim();
+      }
+      obj[colName] = strVal;
+    }
+    parsedRows.push(obj);
+  }
+  
+  return parsedRows;
+}
+
 function parseCSVRows(text: string): Record<string, string>[] {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  const headers = splitCSVLine(lines[0]).map((h) => h.trim());
-  return lines.slice(1).filter((l) => l.trim()).map((line) => {
-    const cols = splitCSVLine(line);
-    const row: Record<string, string> = {};
-    headers.forEach((h, i) => { row[h] = (cols[i] ?? '').trim(); });
-    return row;
-  });
+  const matrix = lines.map((line) => splitCSVLine(line).map((col) => col.trim()));
+  return parseSpreadsheetRaw(matrix);
 }
 
 function formatExcelDate(val: unknown): string {
@@ -78,15 +127,9 @@ function formatExcelDate(val: unknown): string {
 function parseXLSXRows(buffer: ArrayBuffer): Record<string, string>[] {
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' });
-  return rows.map((r) => {
-    const out: Record<string, string> = {};
-    for (const k of Object.keys(r)) {
-      const v = r[k];
-      out[k.trim()] = v instanceof Date ? formatExcelDate(v) : String(v ?? '').trim();
-    }
-    return out;
-  });
+  // Força o xlsx a ler como Matriz 2D independente do que ele acha que é header
+  const matrix = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: '' });
+  return parseSpreadsheetRaw(matrix);
 }
 
 function detectDateColumn(rows: Record<string, string>[], candidates: string[]): string {
