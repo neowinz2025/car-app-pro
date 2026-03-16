@@ -5,9 +5,9 @@ import { toast } from 'sonner';
 export type ImportType = 'reservations' | 'projection' | 'available';
 
 export const VEHICLE_CATEGORIES = [
-  'AM','AT','B','BS','C','CA','CX','CG',
-  'E','EA','G1','G2','I','IE','LX','SG',
-  'SM','SP','SU','SV','T','TT','TS','J','VU','VC',
+  'AM', 'AT', 'B', 'BS', 'C', 'CA', 'CX', 'CG',
+  'E', 'EA', 'G1', 'G2', 'I', 'IE', 'LX', 'SG',
+  'SM', 'SP', 'SU', 'SV', 'T', 'TT', 'TS', 'J', 'VU', 'VC',
 ];
 
 export interface ReservationProjection {
@@ -58,31 +58,9 @@ async function fetchRowCountsByType(
     return {};
   }
 
+  // DI/LV/NO/CQ representam o pátio de uma data específica.
+  // Não propagar para outras datas — retornar vazio se não houver upload para a data.
   const rows = (data as { category: string; count: number }[]) ?? [];
-
-  if (rows.length === 0 && AVAILABLE_FILE_TYPES.includes(fileType)) {
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('daily_file_rows' as never)
-      .select('category, count, upload_date')
-      .eq('file_type', fileType)
-      .lt('upload_date' as never, date)
-      .order('upload_date' as never, { ascending: false })
-      .limit(500);
-
-    if (!fallbackError && fallbackData) {
-      const fallbackRows = fallbackData as { category: string; count: number; upload_date: string }[];
-      const latestDate = fallbackRows[0]?.upload_date;
-      if (latestDate) {
-        const totals: Record<string, number> = {};
-        for (const row of fallbackRows.filter((r) => r.upload_date === latestDate)) {
-          totals[row.category] = (totals[row.category] ?? 0) + row.count;
-        }
-        return totals;
-      }
-    }
-    return {};
-  }
-
   const totals: Record<string, number> = {};
   for (const row of rows) {
     totals[row.category] = (totals[row.category] ?? 0) + row.count;
@@ -320,9 +298,9 @@ export function useReservationProjections() {
   const avgNoShow =
     projections.filter((p) => p.reservations_count > 0).length > 0
       ? projections
-          .filter((p) => p.reservations_count > 0)
-          .reduce((s, p) => s + p.no_show_rate, 0) /
-        projections.filter((p) => p.reservations_count > 0).length
+        .filter((p) => p.reservations_count > 0)
+        .reduce((s, p) => s + p.no_show_rate, 0) /
+      projections.filter((p) => p.reservations_count > 0).length
       : 0;
 
   return {

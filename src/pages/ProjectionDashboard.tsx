@@ -82,27 +82,6 @@ export default function ProjectionDashboard() {
       .eq('file_type', fileType);
     if (error || !data) return {};
     const rows = data as { category: string; count: number }[];
-    if (rows.length === 0 && ['di', 'lv', 'no', 'cq'].includes(fileType)) {
-      const { data: fb } = await supabase
-        .from('daily_file_rows' as never)
-        .select('category, count, upload_date')
-        .eq('file_type', fileType)
-        .lt('upload_date' as never, date)
-        .order('upload_date' as never, { ascending: false })
-        .limit(500);
-      if (fb) {
-        const fbRows = fb as { category: string; count: number; upload_date: string }[];
-        const latestDate = fbRows[0]?.upload_date;
-        if (latestDate) {
-          const totals: Record<string, number> = {};
-          for (const r of fbRows.filter((r) => r.upload_date === latestDate)) {
-            totals[r.category] = (totals[r.category] ?? 0) + r.count;
-          }
-          return totals;
-        }
-      }
-      return {};
-    }
     const totals: Record<string, number> = {};
     for (const r of rows) totals[r.category] = (totals[r.category] ?? 0) + r.count;
     return totals;
@@ -183,7 +162,7 @@ export default function ProjectionDashboard() {
   const avgNoShow =
     projections.filter((p) => p.reservations_count > 0).length > 0
       ? projections.filter((p) => p.reservations_count > 0).reduce((s, p) => s + p.no_show_rate, 0) /
-        projections.filter((p) => p.reservations_count > 0).length
+      projections.filter((p) => p.reservations_count > 0).length
       : 0;
 
   const chartData = activeProjections.map((p) => {
@@ -381,11 +360,10 @@ export default function ProjectionDashboard() {
                               <td className="py-3 px-4 text-center text-gray-700">{p.projection || '—'}</td>
                               <td className="py-3 px-4 text-center">
                                 {(p.reservations_count > 0 || p.available_vehicles > 0 || p.projection > 0) ? (
-                                  <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
-                                    balance > 0 ? 'bg-blue-50 text-blue-700' :
-                                    balance < 0 ? 'bg-red-50 text-red-600' :
-                                    'bg-gray-100 text-gray-500'
-                                  }`}>
+                                  <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${balance > 0 ? 'bg-blue-50 text-blue-700' :
+                                      balance < 0 ? 'bg-red-50 text-red-600' :
+                                        'bg-gray-100 text-gray-500'
+                                    }`}>
                                     {balance > 0 ? `+${balance}` : balance}
                                   </span>
                                 ) : '—'}
@@ -403,11 +381,10 @@ export default function ProjectionDashboard() {
                           <td className="py-3 px-4 text-center">{totalAvailable || '—'}</td>
                           <td className="py-3 px-4 text-center">{totalProjection || '—'}</td>
                           <td className="py-3 px-4 text-center">
-                            <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${
-                              totalBalance > 0 ? 'bg-blue-50 text-blue-700' :
-                              totalBalance < 0 ? 'bg-red-50 text-red-600' :
-                              'bg-gray-100 text-gray-500'
-                            }`}>
+                            <span className={`inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg font-bold text-sm ${totalBalance > 0 ? 'bg-blue-50 text-blue-700' :
+                                totalBalance < 0 ? 'bg-red-50 text-red-600' :
+                                  'bg-gray-100 text-gray-500'
+                              }`}>
                               {totalBalance > 0 ? `+${totalBalance}` : totalBalance}
                             </span>
                           </td>
