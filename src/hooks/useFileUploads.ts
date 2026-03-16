@@ -249,22 +249,17 @@ export function useFileUploads() {
           return true;
         }
 
-        // ---- LIMPA todos os dados antigos do mesmo tipo/datas (incluindo órfãos) ----
-        // Deleta daily_file_rows diretamente por file_type + upload_date
-        // (cobre tanto re-uploads quanto rows órfãos de uploads já deletados)
-        for (const date of dates) {
-          await supabase
-            .from('daily_file_rows' as never)
-            .delete()
-            .eq('file_type', fileType)
-            .eq('upload_date' as never, date);
-        }
-        // Deleta daily_file_uploads antigos pelo mesmo critério
+        // ---- LIMPA todos os dados antigos do mesmo tipo (incluindo datas órfãs) ----
+        // Apaga TODOS os registros do file_type, independente da data,
+        // evitando que dados de uploads anteriores se acumulem no banco.
+        await supabase
+          .from('daily_file_rows' as never)
+          .delete()
+          .eq('file_type', fileType);
         await supabase
           .from('daily_file_uploads' as never)
           .delete()
-          .eq('file_type', fileType)
-          .in('upload_date' as never, dates as never);
+          .eq('file_type', fileType);
         // --------------------------------------------------------------------------
 
         const uploadRows = dates.map((date) => ({

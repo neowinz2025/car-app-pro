@@ -83,10 +83,14 @@ async function fetchAllDailyFileCounts(date: string): Promise<{
     fetchRowCountsByType(date, 'cq'),
   ]);
 
-  // Mescla reservas do arquivo completo + reservas específicas do dia
-  const mergedReservations: Record<string, number> = { ...reservations };
-  for (const [cat, val] of Object.entries(reservationsToday)) {
-    mergedReservations[cat] = (mergedReservations[cat] ?? 0) + val;
+  // Mescla reservas: usa arquivo completo como fonte primária,
+  // reservations_today apenas como fallback para categorias ausentes.
+  // Nunca soma as duas fontes juntas para evitar duplicação.
+  const mergedReservations: Record<string, number> = {};
+  const allCats = new Set([...Object.keys(reservations), ...Object.keys(reservationsToday)]);
+  for (const cat of allCats) {
+    const fromFull = reservations[cat] ?? 0;
+    mergedReservations[cat] = fromFull > 0 ? fromFull : (reservationsToday[cat] ?? 0);
   }
 
   const available: Record<string, number> = {};
