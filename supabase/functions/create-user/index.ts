@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import bcrypt from "npm:bcryptjs@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,6 +13,7 @@ interface CreateUserRequest {
   cpf: string;
   role: 'admin' | 'user';
   storeId?: string;
+  password?: string;
   createdBy: string;
 }
 
@@ -28,7 +30,7 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { name, cpf, role, storeId, createdBy }: CreateUserRequest = await req.json();
+    const { name, cpf, role, storeId, password, createdBy }: CreateUserRequest = await req.json();
 
     if (!name || !cpf) {
       return new Response(
@@ -73,9 +75,25 @@ Deno.serve(async (req: Request) => {
     if (userError) {
       console.error('Error creating user:', userError);
       return new Response(
-        JSON.stringify({ error: 'Erro ao criar usuário' }),
+        JSON.stringify({ error: 'Erro ao criar usuário: ' + userError.message }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Criar senha do usuário (se não fornecida, usa os 4 últimos dígitos do CPF)
+    const userPassword = password && password.trim() ? password : cpf.slice(-4);
+    const passwordHash = await bcrypt.hash(userPassword, 10);
+
+    const { error: passwordError } = await supabase
+      .from('user_passwords')
+      .insert({
+        user_id: userData.id,
+        password_hash: passwordHash,
+      });
+
+    if (passwordError) {
+      console.error('Error creating user password:', passwordError);
+      // Não falha a criação do usuário, mas loga o erro
     }
 
     return new Response(

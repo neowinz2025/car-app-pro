@@ -44,6 +44,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
   const [formData, setFormData] = useState({
     name: '',
     cpf: '',
+    password: '',
     role: 'user' as 'admin' | 'user',
     storeId: '',
   });
@@ -151,6 +152,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
           body: JSON.stringify({
             name: formData.name,
             cpf: formData.cpf,
+            password: formData.password || undefined,
             role: formData.role,
             storeId: formData.storeId || null,
             createdBy: adminUsername,
@@ -252,6 +254,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
     setFormData({
       name: '',
       cpf: '',
+      password: '',
       role: 'user',
       storeId: '',
     });
@@ -327,6 +330,22 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                   </p>
                 )}
               </div>
+
+              {!editingUser && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Senha (opcional)</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Deixe vazio para usar os 4 últimos dígitos do CPF"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se não informada, a senha padrão será os 4 últimos dígitos do CPF
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="role">Função</Label>

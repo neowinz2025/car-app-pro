@@ -21,11 +21,15 @@ export interface UploadedFile {
 const DATE_COL: Record<FileType, string[]> = {
   reservations: ['Data Ret.', 'Data Ret'],
   projection: ['Data Dev.', 'Data Dev'],
-  di: ['Data Ret', 'Data Ret.'],
-  lv: ['Data Ret', 'Data Ret.'],
-  no: ['Data Ret', 'Data Ret.'],
-  cq: ['Data Ret', 'Data Ret.'],
+  // DI/LV/NO/CQ são carros no pátio — não têm data relevante, só grupo
+  di: [],
+  lv: [],
+  no: [],
+  cq: [],
 };
+
+// Tipos de arquivo que representam carros no pátio (sem filtro de data)
+const PATIO_TYPES: FileType[] = ['di', 'lv', 'no', 'cq'];
 
 function splitCSVLine(line: string): string[] {
   const result: string[] = [];
@@ -92,12 +96,56 @@ function detectDateColumn(rows: Record<string, string>[], candidates: string[]):
   return candidates[0] ?? '';
 }
 
+function countGroupsNoDates(
+  data: string | ArrayBuffer,
+  isPDF: boolean,
+  isXLSX: boolean,
+  uploadDate: string,
+): Record<string, Record<string, number>> {
+  // Para arquivos de pátio (DI/LV/NO/CQ), conta todos os grupos sem filtrar por data.
+  // Usa a data de upload como chave única.
+  const grupos: Record<string, number> = {};
+  if (isPDF) {
+    // PDF de pátio: conta todos os grupos visíveis (fallback síncrono não disponível,
+    // retornaremos em branco e deixamos o upload normal lidar)
+    return {};
+  }
+  const rows = isXLSX
+    ? parseXLSXRows(data as ArrayBuffer)
+    : parseCSVRows(data as string);
+  for (const row of rows) {
+    const grupo = (row['Grupo'] ?? row['Grp'] ?? row['Grpo'] ?? '').trim();
+    if (!grupo) continue;
+    grupos[grupo] = (grupos[grupo] ?? 0) + 1;
+  }
+  if (Object.keys(grupos).length === 0) return {};
+  return { [uploadDate]: grupos };
+}
+
 async function extractCountsByAllDates(
   data: string | ArrayBuffer,
   isPDF: boolean,
   isXLSX: boolean,
   fileType: FileType,
+  uploadDate: string,
 ): Promise<Record<string, Record<string, number>>> {
+  // Arquivos de pátio: contar grupos sem data
+  if (PATIO_TYPES.includes(fileType)) {
+    if (isPDF) {
+      // PDFs de pátio: usa o parser geral e agrupa tudo na data de upload
+      const byDate = await parsePDFByGrupoAllDates(data as ArrayBuffer);
+      const merged: Record<string, number> = {};
+      for (const counts of Object.values(byDate)) {
+        for (const [cat, val] of Object.entries(counts)) {
+          merged[cat] = (merged[cat] ?? 0) + val;
+        }
+      }
+      if (Object.keys(merged).length === 0) return {};
+      return { [uploadDate]: merged };
+    }
+    return countGroupsNoDates(data, false, isXLSX, uploadDate);
+  }
+  // Reservas e Projeção de Retorno: usa data do arquivo
   if (isPDF) {
     return parsePDFByGrupoAllDates(data as ArrayBuffer);
   }
@@ -156,7 +204,7 @@ export function useFileUploads() {
           }
         });
 
-        const byDate = await extractCountsByAllDates(data, isPDF, isXLSX, fileType);
+        const byDate = await extractCountsByAllDates(data, isPDF, isXLSX, fileType, uploadDate);
 
         const dates = Object.keys(byDate).filter((d) => d !== 'sem-data');
 
