@@ -249,28 +249,23 @@ export function useFileUploads() {
           return true;
         }
 
-        // ---- LIMPA dados anteriores do mesmo tipo para as datas do novo arquivo ----
-        // Garante que re-upload substitui em vez de acumular
-        const { data: oldUploads } = await supabase
-          .from('daily_file_uploads' as never)
-          .select('id, upload_date')
-          .eq('file_type', fileType)
-          .in('upload_date' as never, dates as never);
-
-        const oldIds = ((oldUploads ?? []) as { id: string }[]).map((u) => u.id);
-        if (oldIds.length > 0) {
-          // Deleta rows antigas (cascade pelo upload_id)
+        // ---- LIMPA todos os dados antigos do mesmo tipo/datas (incluindo órfãos) ----
+        // Deleta daily_file_rows diretamente por file_type + upload_date
+        // (cobre tanto re-uploads quanto rows órfãos de uploads já deletados)
+        for (const date of dates) {
           await supabase
             .from('daily_file_rows' as never)
             .delete()
-            .in('upload_id' as never, oldIds as never);
-          // Deleta uploads antigos
-          await supabase
-            .from('daily_file_uploads' as never)
-            .delete()
-            .in('id' as never, oldIds as never);
+            .eq('file_type', fileType)
+            .eq('upload_date' as never, date);
         }
-        // -------------------------------------------------------------------------
+        // Deleta daily_file_uploads antigos pelo mesmo critério
+        await supabase
+          .from('daily_file_uploads' as never)
+          .delete()
+          .eq('file_type', fileType)
+          .in('upload_date' as never, dates as never);
+        // --------------------------------------------------------------------------
 
         const uploadRows = dates.map((date) => ({
           upload_date: date,
@@ -330,6 +325,12 @@ export function useFileUploads() {
   const deleteUpload = useCallback(
     async (uploadId: string, uploadDate: string) => {
       try {
+        // Deleta rows primeiro (evita órfãos)
+        await supabase
+          .from('daily_file_rows' as never)
+          .delete()
+          .eq('upload_id' as never, uploadId);
+        // Depois deleta o upload
         const { error } = await supabase
           .from('daily_file_uploads' as never)
           .delete()
