@@ -7,7 +7,7 @@ import {
 } from '@/lib/pdfFleetParser';
 import { toast } from 'sonner';
 
-export type FileType = 'reservations' | 'projection' | 'di' | 'lv' | 'no' | 'cq';
+export type FileType = 'reservations' | 'reservations_today' | 'projection' | 'di' | 'lv' | 'no' | 'cq';
 
 export interface UploadedFile {
   id: string;
@@ -20,6 +20,8 @@ export interface UploadedFile {
 
 const DATE_COL: Record<FileType, string[]> = {
   reservations: ['Data Ret.', 'Data Ret'],
+  // reservations_today: todas as linhas vão para a data de upload (sem filtro)
+  reservations_today: [],
   projection: ['Data Dev.', 'Data Dev'],
   // DI/LV/NO/CQ são carros no pátio — não têm data relevante, só grupo
   di: [],
@@ -28,8 +30,8 @@ const DATE_COL: Record<FileType, string[]> = {
   cq: [],
 };
 
-// Tipos de arquivo que representam carros no pátio (sem filtro de data)
-const PATIO_TYPES: FileType[] = ['di', 'lv', 'no', 'cq'];
+// Tipos que não filtram por data — todos os grupos vão para a data de upload
+const PATIO_TYPES: FileType[] = ['di', 'lv', 'no', 'cq', 'reservations_today'];
 
 function splitCSVLine(line: string): string[] {
   const result: string[] = [];

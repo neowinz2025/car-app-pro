@@ -22,9 +22,16 @@ const FILE_TYPES: { key: FileType; label: string; description: string; accept: s
   {
     key: 'reservations',
     label: 'Reservas',
-    description: 'Coluna Data Ret.',
+    description: 'Separa por Data Ret. (todos os dias)',
     accept: '.csv,.xlsx,.xls',
     color: 'blue',
+  },
+  {
+    key: 'reservations_today',
+    label: 'Reservas do Dia',
+    description: 'Apenas da data selecionada',
+    accept: '.csv,.xlsx,.xls',
+    color: 'indigo',
   },
   {
     key: 'projection',

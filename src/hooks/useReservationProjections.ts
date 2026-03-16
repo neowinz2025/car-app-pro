@@ -73,14 +73,21 @@ async function fetchAllDailyFileCounts(date: string): Promise<{
   projection: Record<string, number>;
   available: Record<string, number>;
 }> {
-  const [reservations, projection, di, lv, no, cq] = await Promise.all([
+  const [reservations, reservationsToday, projection, di, lv, no, cq] = await Promise.all([
     fetchRowCountsByType(date, 'reservations'),
+    fetchRowCountsByType(date, 'reservations_today'),
     fetchRowCountsByType(date, 'projection'),
     fetchRowCountsByType(date, 'di'),
     fetchRowCountsByType(date, 'lv'),
     fetchRowCountsByType(date, 'no'),
     fetchRowCountsByType(date, 'cq'),
   ]);
+
+  // Mescla reservas do arquivo completo + reservas específicas do dia
+  const mergedReservations: Record<string, number> = { ...reservations };
+  for (const [cat, val] of Object.entries(reservationsToday)) {
+    mergedReservations[cat] = (mergedReservations[cat] ?? 0) + val;
+  }
 
   const available: Record<string, number> = {};
   for (const counts of [di, lv, no, cq]) {
@@ -89,7 +96,7 @@ async function fetchAllDailyFileCounts(date: string): Promise<{
     }
   }
 
-  return { reservations, projection, available };
+  return { reservations: mergedReservations, projection, available };
 }
 
 export function useReservationProjections() {
