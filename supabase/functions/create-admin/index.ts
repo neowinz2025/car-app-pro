@@ -18,17 +18,24 @@ interface CreateAdminRequest {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+    return new Response(null, { status: 200, headers: corsHeaders });
   }
 
   try {
-    const { username, password, role = 'admin', createdBy, masterKey }: CreateAdminRequest = await req.json();
+    const bodyText = await req.text();
+    console.log("[create-admin] Resquest Recebido: ", bodyText);
+    const body: CreateAdminRequest = JSON.parse(bodyText);
+    
+    const { username, password, role = 'admin', createdBy, masterKey } = body;
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("[create-admin] Variáveis de ambiente faltando: URL ou SERVICE_KEY");
+      throw new Error("Misconfigured environment");
+    }
+
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let authorized = false;
@@ -41,12 +48,14 @@ Deno.serve(async (req) => {
     }
 
     if (!authorized && createdBy) {
-      const { data: callerAdmin } = await supabase
+      const { data: callerAdmin, error: callerError } = await supabase
         .from("admins")
         .select("id, role, active")
         .eq("username", createdBy)
         .eq("active", true)
         .maybeSingle();
+
+      if (callerError) console.error("[create-admin] Erro ao buscar admin criador:", callerError);
 
       if (callerAdmin && callerAdmin.role === "super_admin") {
         authorized = true;
@@ -54,8 +63,9 @@ Deno.serve(async (req) => {
     }
 
     if (!authorized) {
+      console.error(`[create-admin] Acesso negado para o criador: ${createdBy}`);
       return new Response(
-        JSON.stringify({ error: "Não autorizado" }),
+        JSON.stringify({ error: "Sua conta atual não tem permissão para cadastrar administradores." }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -88,11 +98,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { data: existingAdmin } = await supabase
+    console.log(`[create-admin] Checando duplicidade para usuário: ${username}`);
+    const { data: existingAdmin, error: existError } = await supabase
       .from("admins")
       .select("id")
       .eq("username", username)
       .maybeSingle();
+
+    if (existError) console.error("[create-admin] Erro checando duplicidade:", existError);
 
     if (existingAdmin) {
       return new Response(
@@ -101,9 +114,12 @@ Deno.serve(async (req) => {
       );
     }
 
-    const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    console.log(`[create-admin] Criptografando senha para: ${username}...`);
+    // Usando bcrypt async nativo do deno via url q funciona
+    const salt = await bcrypt.genSalt(8);
+    const passwordHash = await bcrypt.hash(password, salt);
 
+    console.log(`[create-admin] Inserindo registro admin no BD...`);
     const { data: newAdmin, error } = await supabase
       .from("admins")
       .insert({
@@ -117,22 +133,23 @@ Deno.serve(async (req) => {
       .single();
 
     if (error) {
-      console.error("Error creating admin:", error);
+      console.error("[create-admin] Erro grave no INSERT do Supabase:", error);
       return new Response(
-        JSON.stringify({ error: "Erro ao criar administrador" }),
+        JSON.stringify({ error: "Erro interno ao salvar no banco", details: error.message }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    console.log("[create-admin] Sucesso! Admin criado:", newAdmin.id);
     return new Response(
       JSON.stringify({ success: true, admin: newAdmin }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    console.error("Error in create-admin function:", error);
+    const errorMessage = error instanceof Error ? error.message : "Erros Desconhecidos";
+    console.error(`[create-admin] Try/Catch Error:`, errorMessage);
     return new Response(
-      JSON.stringify({ error: "Erro interno do servidor", details: errorMessage }),
+      JSON.stringify({ error: "Erro de processamento da função Deno", details: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

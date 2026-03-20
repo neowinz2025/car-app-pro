@@ -180,6 +180,17 @@ function UploadCard({ fileType, uploadDate, existingFiles, onUpload, onDelete, u
               </div>
             </div>
           ))}
+          <button
+            onClick={async () => {
+              for (const f of existingFiles) {
+                await onDelete(f.id, uploadDate);
+              }
+            }}
+            className="flex items-center justify-center gap-1.5 w-full mt-2 px-3 py-1.5 rounded-md text-xs font-medium text-destructive bg-white/80 border border-destructive/30 hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            Excluir {existingFiles.length > 1 ? 'todos' : 'arquivo'}
+          </button>
         </div>
       ) : (
         <p className="text-xs opacity-60 italic">Nenhum arquivo para essa data</p>

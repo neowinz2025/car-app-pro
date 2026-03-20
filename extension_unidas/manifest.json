@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Batycar: Unidas Sync",
+  "version": "1.0.0",
+  "description": "Sincroniza os dados do painel Unidas Frota Gerencial diretamente para o sistema Batycar.",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "https://frotagerencial.unidas.com.br/*",
+    "https://*.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Batycar Sync"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}
