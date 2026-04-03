@@ -72,22 +72,29 @@ export function ScannerView({
   }, [lastAddedPlate]);
 
   const handlePlateDetected = useCallback(async (plate: string) => {
-    if (!activeStep) return;
+    if (!activeStep) {
+      console.log('Capture ignored: activeStep is null');
+      return;
+    }
 
+    console.log('Plate detected, adding:', plate);
     const result = await onAddPlate(plate);
+    
     if (result) {
-      setDetectedPlateText(plate.toUpperCase());
+      console.log('Capture success:', result.plate);
+      setDetectedPlateText(result.plate);
       setLastAddedPlate(result);
       setShowSuccessFlash(true);
+      // Auto-hide success flash after 3 seconds
       setTimeout(() => setShowSuccessFlash(false), 3000);
 
       toast.success('✓ PLACA COLETADA!', {
-        description: plate.toUpperCase(),
+        description: result.plate,
         duration: 4000,
         action: {
           label: 'Editar',
           onClick: () => {
-            setManualPlate(plate.toUpperCase());
+            setManualPlate(result.plate);
             setShowManualInput(true);
             setShowSuccessFlash(false);
           }
@@ -98,6 +105,11 @@ export function ScannerView({
           padding: '1.5rem',
           minWidth: '300px',
         },
+      });
+    } else {
+      console.log('Capture result was null (likely duplicate)');
+      toast.info('Placa já registrada', {
+        description: `A placa ${plate.toUpperCase()} já foi coletada nesta etapa.`,
       });
     }
   }, [activeStep, onAddPlate]);

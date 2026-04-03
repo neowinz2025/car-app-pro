@@ -65,90 +65,97 @@ export function usePlates(storeId?: string) {
 
     if (normalizedPlate.length < 7) return null;
 
-    // Check if plate already exists in the CURRENT SESSION and CURRENT STEP
-    const existsInCurrentStep = plates.some(p => {
-      if (p.plate !== normalizedPlate) return false;
-      if (activeStep === 'loja') return p.loja;
-      if (activeStep === 'lavaJato') return p.lavaJato;
-      return false;
-    });
-
-    if (existsInCurrentStep) {
-      console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep} na sessão atual`);
-      return null;
-    }
-
     const timestamp = new Date();
-    let newPlate: PlateRecord;
+    let newPlateObj: PlateRecord | null = null;
+    let isDuplicate = false;
 
-    // Check if plate exists in current session but in different step - update it
-    const existingPlate = plates.find(p => p.plate === normalizedPlate);
+    // Use a temporary state check to determine if it's a duplicate or exists
+    setPlates(prev => {
+      // Check if plate already exists in the CURRENT SESSION and CURRENT STEP
+      const existsInCurrentStep = prev.some(p => {
+        if (p.plate !== normalizedPlate) return false;
+        if (activeStep === 'loja') return p.loja;
+        if (activeStep === 'lavaJato') return p.lavaJato;
+        return false;
+      });
 
-    if (existingPlate) {
-      // Update existing plate in current session with new step
-      const updates: Partial<PlateRecord> = {
-        timestamp,
-        ...(activeStep === 'loja' ? { loja: true } : {}),
-        ...(activeStep === 'lavaJato' ? { lavaJato: true } : {}),
-      };
+      if (existsInCurrentStep) {
+        console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep} na sessão atual`);
+        isDuplicate = true;
+        return prev;
+      }
 
-      setPlates(prev => {
+      // Check if plate exists in current session but in different step - update it
+      const existingPlate = prev.find(p => p.plate === normalizedPlate);
+
+      if (existingPlate) {
+        // Update existing plate in current session with new step
+        const updates: Partial<PlateRecord> = {
+          timestamp,
+          ...(activeStep === 'loja' ? { loja: true } : {}),
+          ...(activeStep === 'lavaJato' ? { lavaJato: true } : {}),
+        };
         const updated = prev.map(p =>
           p.plate === normalizedPlate ? { ...p, ...updates } : p
         );
         savePlates(updated);
+        newPlateObj = { ...existingPlate, ...updates };
         return updated;
-      });
-      newPlate = { ...existingPlate, ...updates };
-    } else {
-      // Add new plate to current session
-      newPlate = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        plate: normalizedPlate,
-        timestamp,
-        loja: activeStep === 'loja',
-        lavaJato: activeStep === 'lavaJato',
-      };
-
-      setPlates(prev => {
-        const updated = [newPlate, ...prev];
+      } else {
+        // Add new plate to current session
+        newPlateObj = {
+          id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          plate: normalizedPlate,
+          timestamp,
+          loja: activeStep === 'loja',
+          lavaJato: activeStep === 'lavaJato',
+        };
+        const updated = [newPlateObj, ...prev];
         savePlates(updated);
         return updated;
-      });
-    }
-
-    // Always save to database (allows same plate multiple times across different sessions)
-    try {
-      const { data, error } = await (supabase
-        .from('plate_records' as any) as any)
-        .insert({
-          plate: normalizedPlate,
-          timestamp: timestamp.toISOString(),
-          loja: activeStep === 'loja',
-          lava_jato: activeStep === 'lavaJato',
-          session_date: timestamp.toISOString().split('T')[0],
-          store_id: storeId,
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        console.error('Error saving plate to database:', error);
-      } else if (data) {
-        // Update the plate with the DB ID
-        newPlate.dbId = data.id;
-        setPlates(prev => {
-          const updated = prev.map(p => p.id === newPlate.id ? { ...p, dbId: data.id } : p);
-          savePlates(updated);
-          return updated;
-        });
       }
-    } catch (error) {
-      console.error('Error saving plate to database:', error);
+    });
+
+    // If it was a duplicate, we return null after the setPlates call
+    if (isDuplicate) return null;
+    
+    // We need to wait a tiny bit or just use the local newPlateObj
+    // Since we are in a Promise, we can proceed with DB save
+    if (newPlateObj) {
+      const finalPlate = newPlateObj as PlateRecord;
+      try {
+        const { data, error } = await (supabase
+          .from('plate_records' as any) as any)
+          .insert({
+            plate: normalizedPlate,
+            timestamp: timestamp.toISOString(),
+            loja: activeStep === 'loja',
+            lava_jato: activeStep === 'lavaJato',
+            session_date: timestamp.toISOString().split('T')[0],
+            store_id: storeId,
+          })
+          .select('id')
+          .single();
+
+        if (error) {
+          console.error('Error saving plate to database:', error);
+        } else if (data) {
+          // Update the plate with the DB ID in the next tick
+          setPlates(prev => {
+            const updated = prev.map(p => p.id === finalPlate.id ? { ...p, dbId: data.id } : p);
+            savePlates(updated);
+            return updated;
+          });
+          finalPlate.dbId = data.id;
+        }
+      } catch (error) {
+        console.error('Error saving plate to database:', error);
+      }
+      return finalPlate;
     }
 
-    return newPlate;
-  }, [activeStep, plates, storeId]);
+    return null;
+  }, [activeStep, storeId]); // Removed 'plates' from dependency array!
 
   const removePlate = useCallback((id: string) => {
     setPlates(prev => {
