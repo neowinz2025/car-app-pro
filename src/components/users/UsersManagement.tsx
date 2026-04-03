@@ -170,9 +170,9 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       setIsDialogOpen(false);
       resetForm();
       loadUsers();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error saving user:', error);
-      toast.error(error.message || 'Erro ao salvar usuário');
+      toast.error((error as Error).message || 'Erro ao salvar usuário');
     }
   };
 
@@ -202,9 +202,9 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
 
       toast.success(user.active ? 'Usuário desativado' : 'Usuário ativado');
       loadUsers();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error toggling user status:', error);
-      toast.error(error.message || 'Erro ao alterar status');
+      toast.error((error as Error).message || 'Erro ao alterar status');
     }
   };
 
@@ -233,9 +233,9 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
 
       toast.success('Usuário excluído com sucesso');
       loadUsers();
-    } catch (error: any) {
+    } catch (error: Error | unknown) {
       console.error('Error deleting user:', error);
-      toast.error(error.message || 'Erro ao excluir usuário');
+      toast.error((error as Error).message || 'Erro ao excluir usuário');
     }
   };
 
