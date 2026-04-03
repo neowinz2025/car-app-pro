@@ -90,42 +90,60 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Plate Recognizer API error:', response.status, errorText);
+      console.error(`Plate Recognizer API error: ${response.status} - ${errorText}`);
+      
+      // Return a 200 with error info so the frontend can show a nice message
       return new Response(
-        JSON.stringify({ error: 'Failed to recognize plate', details: errorText }),
-        { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          error: `API do Plate Recognizer retornou erro ${response.status}`, 
+          details: errorText,
+          status: response.status 
+        }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const data = await response.json();
-    console.log('Plate Recognizer response:', JSON.stringify(data));
+    console.log('Plate Recognizer API success!');
 
     if (keyId) {
       await incrementApiKeyUsage(keyId);
-      console.log('API key usage incremented');
     }
 
-    // Function to check if plate matches Mercosul format (ABC1D23)
-    const isMercosulPlate = (plate: string): boolean => {
-      // Mercosul format: 3 letters + 1 digit + 1 letter + 2 digits
-      const mercosulPattern = /^[A-Z]{3}\d[A-Z]\d{2}$/;
-      return mercosulPattern.test(plate);
+    // Function to check if plate matches Brazilian format (Legacy or Mercosul)
+    const isValidBrazilianPlate = (plate: string): boolean => {
+      // Common pattern: 7 characters, always starts with 3 letters
+      // 1-3: letters
+      // 4: digit
+      // 5: letter (mercosul) OR digit (legacy)
+      // 6-7: digits
+      const pattern = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
+      return pattern.test(plate);
     };
 
-    // Extract plates from response and filter only Mercosul format
+    // Extract plates from response and filter
     const allPlates = data.results?.map((result: any) => ({
       plate: result.plate?.toUpperCase() || '',
       confidence: result.score || 0,
       region: result.region?.code || 'unknown',
     })) || [];
 
-    // Filter to only include Mercosul plates
-    const plates = allPlates.filter((p: any) => isMercosulPlate(p.plate));
+    // Filter to only include valid Brazilian format plates (Legacy or Mercosul)
+    const plates = allPlates.filter((p: any) => isValidBrazilianPlate(p.plate));
 
-    console.log(`Filtered ${allPlates.length} plates to ${plates.length} Mercosul plates`);
+    console.log(`Results: ${allPlates.length} total, ${plates.length} validated as Brazilian format`);
+    if (plates.length > 0) {
+      console.log('Detected plates:', plates.map((p: any) => p.plate).join(', '));
+    } else if (allPlates.length > 0) {
+      console.log('No plates matched the Brazilian format. Raw results:', allPlates.map((p: any) => p.plate).join(', '));
+    }
 
     return new Response(
-      JSON.stringify({ plates, processing_time: data.processing_time }),
+      JSON.stringify({ 
+        plates, 
+        processing_time: data.processing_time,
+        total_results: allPlates.length 
+      }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
