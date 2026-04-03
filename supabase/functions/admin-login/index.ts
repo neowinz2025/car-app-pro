@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "npm:bcryptjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,8 +55,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const normalizedHash = admin.password_hash.replace(/^\$2a\$/, "$2b$");
-    const isPasswordValid = await bcrypt.compare(password, normalizedHash);
+    const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
 
     if (!isPasswordValid) {
       return new Response(
