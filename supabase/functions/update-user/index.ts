@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "npm:bcryptjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -57,8 +57,8 @@ Deno.serve(async (req: Request) => {
     }
 
     if (password && password.trim()) {
-      const salt = await bcrypt.genSalt(8);
-      const hashedPassword = await bcrypt.hash(password, salt);
+        const salt = bcrypt.genSaltSync(8);
+        const hashedPassword = bcrypt.hashSync(password, salt);
 
       const { data: existingPassword } = await supabase
         .from('user_passwords')
