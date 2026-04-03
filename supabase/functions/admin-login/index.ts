@@ -55,7 +55,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const isPasswordValid = await bcrypt.compare(password, admin.password_hash);
+    const normalizedHash = admin.password_hash.replace(/^\$2a\$/, "$2b$");
+    const isPasswordValid = await bcrypt.compare(password, normalizedHash);
 
     if (!isPasswordValid) {
       return new Response(
