@@ -3,7 +3,7 @@ import { Camera, Flashlight, FlashlightOff, Plus, Store, Droplets, X, AlertCircl
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { ActiveStep } from '@/types/plate';
+import { ActiveStep, PlateRecord } from '@/types/plate';
 import { toast } from 'sonner';
 import { useCamera } from '@/hooks/useCamera';
 import { usePlateRecognition } from '@/hooks/usePlateRecognition';
@@ -13,7 +13,9 @@ import { supabase } from '@/integrations/supabase/client';
 interface ScannerViewProps {
   activeStep: ActiveStep;
   onSetActiveStep: (step: ActiveStep) => void;
-  onAddPlate: (plate: string) => Promise<boolean>;
+  onAddPlate: (plate: string) => Promise<PlateRecord | null>;
+  onRemovePlate: (id: string) => void;
+  onRemoveFromDB: (dbId: string) => Promise<boolean>;
 }
 
 interface PlateSuggestion {
@@ -22,12 +24,19 @@ interface PlateSuggestion {
   count: number;
 }
 
-export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: ScannerViewProps) {
+export function ScannerView({ 
+  activeStep, 
+  onSetActiveStep, 
+  onAddPlate,
+  onRemovePlate,
+  onRemoveFromDB
+}: ScannerViewProps) {
   const [flashlightOn, setFlashlightOn] = useState(false);
   const [manualPlate, setManualPlate] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
   const [showSuccessFlash, setShowSuccessFlash] = useState(false);
   const [detectedPlateText, setDetectedPlateText] = useState('');
+  const [lastAddedPlate, setLastAddedPlate] = useState<PlateRecord | null>(null);
   const [suggestions, setSuggestions] = useState<PlateSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -49,18 +58,40 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
     syncWithDatabase();
   }, [syncWithDatabase]);
 
+  const handleEditLastPlate = useCallback(() => {
+    if (!lastAddedPlate) return;
+    
+    // Abrir o modo manual com a placa para correção
+    setManualPlate(lastAddedPlate.plate);
+    setShowManualInput(true);
+    setShowSuccessFlash(false);
+    
+    // Guardar a referência para remover quando confirmar a nova
+    // No nosso fluxo, o usuário quer que seja removida "quando confirmar a edição"
+    // Então passamos essa info para o handleManualAdd ou similar
+  }, [lastAddedPlate]);
+
   const handlePlateDetected = useCallback(async (plate: string) => {
     if (!activeStep) return;
 
-    const success = await onAddPlate(plate);
-    if (success) {
+    const result = await onAddPlate(plate);
+    if (result) {
       setDetectedPlateText(plate.toUpperCase());
+      setLastAddedPlate(result);
       setShowSuccessFlash(true);
-      setTimeout(() => setShowSuccessFlash(false), 1500);
+      setTimeout(() => setShowSuccessFlash(false), 3000);
 
       toast.success('✓ PLACA COLETADA!', {
         description: plate.toUpperCase(),
-        duration: 3000,
+        duration: 4000,
+        action: {
+          label: 'Editar',
+          onClick: () => {
+            setManualPlate(plate.toUpperCase());
+            setShowManualInput(true);
+            setShowSuccessFlash(false);
+          }
+        },
         style: {
           fontSize: '1.25rem',
           fontWeight: 'bold',
@@ -134,8 +165,8 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
 
     setIsSearching(true);
     try {
-      const { data, error } = await supabase
-        .from('plate_records')
+      const { data, error } = await (supabase
+        .from('plate_records' as any) as any)
         .select('plate, created_at')
         .ilike('plate', `%${searchTerm}%`)
         .order('created_at', { ascending: false })
@@ -190,15 +221,35 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
 
   const handleManualAdd = async () => {
     if (manualPlate.trim()) {
-      const success = await onAddPlate(manualPlate.trim());
-      if (success) {
-        setDetectedPlateText(manualPlate.toUpperCase());
+      const plateToConfirm = manualPlate.trim();
+      
+      // Se estamos editando uma placa capturada agora, removemos a anterior primeiro
+      if (lastAddedPlate && lastAddedPlate.plate !== plateToConfirm.toUpperCase()) {
+        onRemovePlate(lastAddedPlate.id);
+        if (lastAddedPlate.dbId) {
+          onRemoveFromDB(lastAddedPlate.dbId);
+        }
+      }
+
+      const result = await onAddPlate(plateToConfirm);
+      if (result) {
+        setDetectedPlateText(plateToConfirm.toUpperCase());
+        setLastAddedPlate(result);
         setShowSuccessFlash(true);
-        setTimeout(() => setShowSuccessFlash(false), 1500);
+        setTimeout(() => setShowSuccessFlash(false), 3000);
 
         toast.success('✓ PLACA REGISTRADA!', {
-          description: manualPlate.toUpperCase(),
-          duration: 3000,
+          description: plateToConfirm.toUpperCase(),
+          duration: 4000,
+          action: {
+            label: 'Editar',
+            onClick: () => {
+              setManualPlate(plateToConfirm.toUpperCase());
+              setLastAddedPlate(result);
+              setShowManualInput(true);
+              setShowSuccessFlash(false);
+            }
+          },
           style: {
             fontSize: '1.25rem',
             fontWeight: 'bold',
@@ -241,6 +292,15 @@ export function ScannerView({ activeStep, onSetActiveStep, onAddPlate }: Scanner
               <p className="text-3xl font-bold">PLACA COLETADA!</p>
               <p className="text-5xl font-mono font-black mt-2 tracking-wider">{detectedPlateText}</p>
             </div>
+            
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handleEditLastPlate}
+              className="mt-4 bg-white text-green-600 hover:bg-white/90 font-bold border-2 border-green-600 rounded-2xl px-8"
+            >
+              EDITAR PLACA
+            </Button>
           </div>
         </div>
       )}

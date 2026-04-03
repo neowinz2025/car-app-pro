@@ -60,10 +60,10 @@ export function usePlates(storeId?: string) {
     setPlates(currentPlates);
   }, []);
 
-  const addPlate = useCallback(async (plateText: string) => {
+  const addPlate = useCallback(async (plateText: string): Promise<PlateRecord | null> => {
     const normalizedPlate = plateText.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    if (normalizedPlate.length < 7) return false;
+    if (normalizedPlate.length < 7) return null;
 
     // Check if plate already exists in the CURRENT SESSION and CURRENT STEP
     const existsInCurrentStep = plates.some(p => {
@@ -75,10 +75,11 @@ export function usePlates(storeId?: string) {
 
     if (existsInCurrentStep) {
       console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep} na sessão atual`);
-      return false;
+      return null;
     }
 
     const timestamp = new Date();
+    let newPlate: PlateRecord;
 
     // Check if plate exists in current session but in different step - update it
     const existingPlate = plates.find(p => p.plate === normalizedPlate);
@@ -98,9 +99,10 @@ export function usePlates(storeId?: string) {
         savePlates(updated);
         return updated;
       });
+      newPlate = { ...existingPlate, ...updates };
     } else {
       // Add new plate to current session
-      const newPlate: PlateRecord = {
+      newPlate = {
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         plate: normalizedPlate,
         timestamp,
@@ -117,8 +119,8 @@ export function usePlates(storeId?: string) {
 
     // Always save to database (allows same plate multiple times across different sessions)
     try {
-      const { error } = await supabase
-        .from('plate_records')
+      const { data, error } = await (supabase
+        .from('plate_records' as any) as any)
         .insert({
           plate: normalizedPlate,
           timestamp: timestamp.toISOString(),
@@ -126,16 +128,26 @@ export function usePlates(storeId?: string) {
           lava_jato: activeStep === 'lavaJato',
           session_date: timestamp.toISOString().split('T')[0],
           store_id: storeId,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) {
         console.error('Error saving plate to database:', error);
+      } else if (data) {
+        // Update the plate with the DB ID
+        newPlate.dbId = data.id;
+        setPlates(prev => {
+          const updated = prev.map(p => p.id === newPlate.id ? { ...p, dbId: data.id } : p);
+          savePlates(updated);
+          return updated;
+        });
       }
     } catch (error) {
       console.error('Error saving plate to database:', error);
     }
 
-    return true;
+    return newPlate;
   }, [activeStep, plates, storeId]);
 
   const removePlate = useCallback((id: string) => {
@@ -144,6 +156,21 @@ export function usePlates(storeId?: string) {
       savePlates(updated);
       return updated;
     });
+  }, []);
+
+  const removePlateFromDB = useCallback(async (dbId: string) => {
+    try {
+      const { error } = await (supabase
+        .from('plate_records' as any) as any)
+        .delete()
+        .eq('id', dbId);
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error removing plate from database:', error);
+      return false;
+    }
   }, []);
 
   const updatePlate = useCallback((id: string, updates: Partial<PlateRecord>) => {
@@ -185,6 +212,7 @@ export function usePlates(storeId?: string) {
     setActiveStep,
     addPlate,
     removePlate,
+    removePlateFromDB,
     updatePlate,
     clearPlates,
     fillStep,

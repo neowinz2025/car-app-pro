@@ -1,5 +1,6 @@
 export interface PlateRecord {
   id: string;
+  dbId?: string;
   plate: string;
   timestamp: Date;
   loja: boolean;

@@ -18,8 +18,7 @@ export function useStores() {
   const getAllStores = async (): Promise<Store[]> => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('stores')
+      const { data, error } = await (supabase.from('stores' as any) as any)
         .select('*')
         .order('name', { ascending: true });
 
@@ -37,8 +36,7 @@ export function useStores() {
   const getActiveStores = async (): Promise<Store[]> => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('stores')
+      const { data, error } = await (supabase.from('stores' as any) as any)
         .select('*')
         .eq('is_active', true)
         .order('name', { ascending: true });
@@ -57,8 +55,7 @@ export function useStores() {
   const getStoreById = async (id: string): Promise<Store | null> => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('stores')
+      const { data, error } = await (supabase.from('stores' as any) as any)
         .select('*')
         .eq('id', id)
         .maybeSingle();
@@ -101,16 +98,16 @@ export function useStores() {
         logoUrl = publicUrl;
       }
 
-      const { error } = await supabase
-        .from('stores')
-        .insert({
+      const { data, error } = await supabase.functions.invoke('create-store', {
+        body: {
           name,
           address,
           logo_url: logoUrl,
-          is_active: true,
-        });
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Loja criada com sucesso!');
       return true;
@@ -136,8 +133,8 @@ export function useStores() {
       let logoUrl: string | null | undefined;
 
       if (removeLogo) {
-        const { data: store } = await supabase
-          .from('stores')
+        const { data: store } = await (supabase
+          .from('stores' as any) as any)
           .select('logo_url')
           .eq('id', id)
           .maybeSingle();
@@ -151,8 +148,8 @@ export function useStores() {
         }
         logoUrl = null;
       } else if (logoFile) {
-        const { data: store } = await supabase
-          .from('stores')
+        const { data: store } = await (supabase
+          .from('stores' as any) as any)
           .select('logo_url')
           .eq('id', id)
           .maybeSingle();
@@ -191,12 +188,17 @@ export function useStores() {
         updateData.logo_url = logoUrl;
       }
 
-      const { error } = await supabase
-        .from('stores')
-        .update(updateData)
-        .eq('id', id);
+      const { data, error } = await supabase.functions.invoke('update-store', {
+        body: {
+          id,
+          name,
+          address,
+          logo_url: logoUrl,
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Loja atualizada com sucesso!');
       return true;
@@ -213,15 +215,22 @@ export function useStores() {
     try {
       setLoading(true);
 
-      const { error } = await supabase
-        .from('stores')
-        .update({
+      const { data: store } = await (supabase
+        .from('stores' as any) as any)
+        .select('name')
+        .eq('id', id)
+        .single();
+
+      const { data, error } = await supabase.functions.invoke('update-store', {
+        body: {
+          id,
+          name: store?.name || '',
           is_active: isActive,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+        },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success(`Loja ${isActive ? 'ativada' : 'desativada'} com sucesso!`);
       return true;
@@ -238,8 +247,8 @@ export function useStores() {
     try {
       setLoading(true);
 
-      const { data: store } = await supabase
-        .from('stores')
+      const { data: store } = await (supabase
+        .from('stores' as any) as any)
         .select('logo_url')
         .eq('id', id)
         .maybeSingle();
@@ -252,12 +261,12 @@ export function useStores() {
         }
       }
 
-      const { error } = await supabase
-        .from('stores')
-        .delete()
-        .eq('id', id);
+      const { data, error } = await supabase.functions.invoke('delete-store', {
+        body: { id },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success('Loja excluída com sucesso!');
       return true;

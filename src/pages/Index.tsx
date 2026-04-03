@@ -45,6 +45,7 @@ const Index = () => {
     setActiveStep,
     addPlate,
     removePlate,
+    removePlateFromDB,
     updatePlate,
     clearPlates,
     fillStep,
@@ -69,6 +70,8 @@ const Index = () => {
             activeStep={activeStep}
             onSetActiveStep={setActiveStep}
             onAddPlate={addPlate}
+            onRemovePlate={removePlate}
+            onRemoveFromDB={removePlateFromDB}
           />
         );
       case 'plates':
