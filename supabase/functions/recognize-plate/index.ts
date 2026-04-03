@@ -122,27 +122,31 @@ Deno.serve(async (req) => {
     };
 
     // Extract plates from response and filter
-    const allPlates = data.results?.map((result: any) => ({
-      plate: result.plate?.toUpperCase() || '',
-      confidence: result.score || 0,
-      region: result.region?.code || 'unknown',
-    })) || [];
+    const plates = (data.results || [])
+      .map((result: any) => {
+        const rawPlate = result.plate?.toUpperCase() || '';
+        // Normalize: remove dashes, spaces, etc.
+        const normalizedPlate = rawPlate.replace(/[^A-Z0-9]/g, '');
+        
+        return {
+          plate: normalizedPlate,
+          raw_plate: rawPlate,
+          confidence: result.score || 0,
+          region: result.region?.code || 'unknown',
+        };
+      })
+      .filter((p: any) => isValidBrazilianPlate(p.plate));
 
-    // Filter to only include valid Brazilian format plates (Legacy or Mercosul)
-    const plates = allPlates.filter((p: any) => isValidBrazilianPlate(p.plate));
-
-    console.log(`Results: ${allPlates.length} total, ${plates.length} validated as Brazilian format`);
+    console.log(`Results: ${data.results?.length || 0} total, ${plates.length} validated as Brazilian format`);
     if (plates.length > 0) {
       console.log('Detected plates:', plates.map((p: any) => p.plate).join(', '));
-    } else if (allPlates.length > 0) {
-      console.log('No plates matched the Brazilian format. Raw results:', allPlates.map((p: any) => p.plate).join(', '));
     }
 
     return new Response(
       JSON.stringify({ 
         plates, 
         processing_time: data.processing_time,
-        total_results: allPlates.length 
+        total_results: data.results?.length || 0 
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
