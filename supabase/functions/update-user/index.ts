@@ -11,7 +11,7 @@ const corsHeaders = {
 interface UpdateUserRequest {
   userId: string;
   name: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR';
+  role?: 'super_admin' | 'admin' | 'user';
   storeId?: string;
   password?: string;
   adminUsername: string;

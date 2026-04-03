@@ -17,7 +17,7 @@ interface SystemUser {
   id: string;
   name: string;
   cpf: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR';
+  role: 'super_admin' | 'admin' | 'user';
   active: boolean;
   created_at: string;
   created_by: string | null;
@@ -256,7 +256,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: '',
       cpf: '',
       password: '',
-      role: 'OPERADOR',
+      role: 'user',
       storeId: '',
     });
     setEditingUser(null);
@@ -352,25 +352,25 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                 <Label htmlFor="role">Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR') => setFormData({ ...formData, role: value })}
+                  onValueChange={(value: 'super_admin' | 'admin' | 'user') => setFormData({ ...formData, role: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="OPERADOR">
+                    <SelectItem value="user">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
                         Operador
                       </div>
                     </SelectItem>
-                    <SelectItem value="ADMIN">
+                    <SelectItem value="admin">
                       <div className="flex items-center gap-2">
                         <Shield className="w-4 h-4" />
                         Administrador
                       </div>
                     </SelectItem>
-                    <SelectItem value="SUPER_ADMIN">
+                    <SelectItem value="super_admin">
                       <div className="flex items-center gap-2">
                         <Shield className="w-4 h-4 text-purple-500" />
                         Super Administrador
@@ -437,8 +437,8 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-8 h-8 rounded-lg ${user.role !== 'OPERADOR' ? 'bg-primary/10' : 'bg-blue-500/10'} flex items-center justify-center`}>
-                        {user.role !== 'OPERADOR' ? (
+                      <div className={`w-8 h-8 rounded-lg ${user.role !== 'user' ? 'bg-primary/10' : 'bg-blue-500/10'} flex items-center justify-center`}>
+                        {user.role !== 'user' ? (
                           <Shield className="w-4 h-4 text-primary" />
                         ) : (
                           <User className="w-4 h-4 text-blue-500" />
@@ -447,8 +447,8 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold">{user.name}</h4>
-                          <Badge variant={user.role !== 'OPERADOR' ? 'default' : 'secondary'}>
-                            {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'ADMIN' ? 'Admin' : 'Operador'}
+                          <Badge variant={user.role !== 'user' ? 'default' : 'secondary'}>
+                            {user.role === 'super_admin' ? 'Super Admin' : user.role === 'admin' ? 'Admin' : 'Operador'}
                           </Badge>
                           {user.active ? (
                             <Badge variant="outline" className="text-green-600 border-green-600">

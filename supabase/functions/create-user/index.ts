@@ -11,7 +11,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   name: string;
   cpf: string;
-  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR';
+  role: 'super_admin' | 'admin' | 'user';
   storeId?: string;
   password?: string;
   createdBy: string;
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
       .insert({
         name,
         cpf,
-        role: role || 'OPERADOR',
+        role: role || 'user',
         store_id: storeId || null,
         created_by: createdBy,
         active: true,
