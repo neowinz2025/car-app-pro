@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import bcrypt from "npm:bcryptjs@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,7 +11,7 @@ const corsHeaders = {
 interface CreateUserRequest {
   name: string;
   cpf: string;
-  role: 'admin' | 'user';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR';
   storeId?: string;
   password?: string;
   createdBy: string;
@@ -64,7 +64,7 @@ Deno.serve(async (req: Request) => {
       .insert({
         name,
         cpf,
-        role: role || 'user',
+        role: role || 'OPERADOR',
         store_id: storeId || null,
         created_by: createdBy,
         active: true,
@@ -82,7 +82,8 @@ Deno.serve(async (req: Request) => {
 
     // Criar senha do usuário (se não fornecida, usa os 4 últimos dígitos do CPF)
     const userPassword = password && password.trim() ? password : cpf.slice(-4);
-    const passwordHash = await bcrypt.hash(userPassword, 10);
+    const salt = await bcrypt.genSalt(8);
+    const passwordHash = await bcrypt.hash(userPassword, salt);
 
     const { error: passwordError } = await supabase
       .from('user_passwords')

@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS stores (
 );
 
 -- Add the new constraint with new roles (data already updated via execute_sql)
+ALTER TABLE users DROP CONSTRAINT IF EXISTS valid_role;
 ALTER TABLE users ADD CONSTRAINT valid_role 
   CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'OPERADOR'));
 

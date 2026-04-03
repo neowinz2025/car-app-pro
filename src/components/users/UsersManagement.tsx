@@ -17,7 +17,7 @@ interface SystemUser {
   id: string;
   name: string;
   cpf: string;
-  role: 'admin' | 'user';
+  role: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR';
   active: boolean;
   created_at: string;
   created_by: string | null;
@@ -45,7 +45,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
     name: '',
     cpf: '',
     password: '',
-    role: 'user' as 'admin' | 'user',
+    role: 'OPERADOR' as 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR',
     storeId: '',
   });
 
@@ -246,6 +246,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       cpf: user.cpf,
       role: user.role,
       storeId: user.store_id || '',
+      password: '',
     });
     setIsDialogOpen(true);
   };
@@ -255,7 +256,7 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
       name: '',
       cpf: '',
       password: '',
-      role: 'user',
+      role: 'OPERADOR',
       storeId: '',
     });
     setEditingUser(null);
@@ -351,22 +352,28 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                 <Label htmlFor="role">Função</Label>
                 <Select
                   value={formData.role}
-                  onValueChange={(value: 'admin' | 'user') => setFormData({ ...formData, role: value })}
+                  onValueChange={(value: 'SUPER_ADMIN' | 'ADMIN' | 'OPERADOR') => setFormData({ ...formData, role: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="user">
+                    <SelectItem value="OPERADOR">
                       <div className="flex items-center gap-2">
                         <User className="w-4 h-4" />
-                        Usuário
+                        Operador
                       </div>
                     </SelectItem>
-                    <SelectItem value="admin">
+                    <SelectItem value="ADMIN">
                       <div className="flex items-center gap-2">
                         <Shield className="w-4 h-4" />
                         Administrador
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="SUPER_ADMIN">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4 text-purple-500" />
+                        Super Administrador
                       </div>
                     </SelectItem>
                   </SelectContent>
@@ -430,8 +437,8 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
-                      <div className={`w-8 h-8 rounded-lg ${user.role === 'admin' ? 'bg-primary/10' : 'bg-blue-500/10'} flex items-center justify-center`}>
-                        {user.role === 'admin' ? (
+                      <div className={`w-8 h-8 rounded-lg ${user.role !== 'OPERADOR' ? 'bg-primary/10' : 'bg-blue-500/10'} flex items-center justify-center`}>
+                        {user.role !== 'OPERADOR' ? (
                           <Shield className="w-4 h-4 text-primary" />
                         ) : (
                           <User className="w-4 h-4 text-blue-500" />
@@ -440,8 +447,8 @@ export function UsersManagement({ adminUsername }: UsersManagementProps) {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h4 className="font-semibold">{user.name}</h4>
-                          <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                            {user.role === 'admin' ? 'Admin' : 'Usuário'}
+                          <Badge variant={user.role !== 'OPERADOR' ? 'default' : 'secondary'}>
+                            {user.role === 'SUPER_ADMIN' ? 'Super Admin' : user.role === 'ADMIN' ? 'Admin' : 'Operador'}
                           </Badge>
                           {user.active ? (
                             <Badge variant="outline" className="text-green-600 border-green-600">
