@@ -40,6 +40,7 @@ const App = () => (
           {/* New Nested Admin Routes */}
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/reports" replace />} />
+            <Route path="dashboard" element={<Navigate to="/admin/reports" replace />} />
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="plates" element={<AdminPlatesPage />} />
             <Route path="damaged" element={<AdminDamagedPage />} />

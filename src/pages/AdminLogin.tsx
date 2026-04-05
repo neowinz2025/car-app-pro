@@ -29,7 +29,7 @@ export default function AdminLogin() {
 
     if (result.success) {
       toast.success('Login realizado com sucesso!');
-      navigate('/admin/dashboard');
+      navigate('/admin/reports');
     } else {
       toast.error(result.error || 'Usuário ou senha incorretos');
       setPassword('');
