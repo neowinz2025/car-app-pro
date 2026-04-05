@@ -9,6 +9,7 @@ import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/AdminDashboard"; // Legacy Dashboard
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
+import AdminPlatesPage from "./pages/admin/AdminPlatesPage";
 import UserLogin from "./pages/UserLogin";
 import { SharedReportView } from "@/components/reports/SharedReportView";
 import ProjectionDashboard from "./pages/ProjectionDashboard";
@@ -32,6 +33,7 @@ const App = () => (
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<Navigate to="/admin/reports" replace />} />
             <Route path="reports" element={<AdminReportsPage />} />
+            <Route path="plates" element={<AdminPlatesPage />} />
           </Route>
           
           {/* Legacy route kept for temporarily avoiding breakage while refactoring */}
