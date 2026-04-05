@@ -110,10 +110,19 @@ export function ScannerView({
     }
   }, [activeStep, onAddPlate]);
 
-  const { recognizePlate, isProcessing, resetLastPlate } = usePlateRecognition({
+  const { recognizePlate, isProcessing, error: ocrError, resetLastPlate } = usePlateRecognition({
     onPlateDetected: handlePlateDetected,
     confidenceThreshold: 0.7,
   });
+
+  // Show error if OCR fails
+  useEffect(() => {
+    if (ocrError) {
+      toast.error('Erro no scanner', {
+        description: ocrError,
+      });
+    }
+  }, [ocrError]);
 
   const handleScanToggle = async () => {
     if (!activeStep) {
@@ -156,7 +165,12 @@ export function ScannerView({
 
     const frame = captureFrame();
     if (frame) {
-      await recognizePlate(frame);
+      const results = await recognizePlate(frame, true); // forceRefresh = true for manual scan
+      if (results.length === 0 && !ocrError) {
+        toast.info('Nenhuma placa detectada', {
+          description: 'Aproxime mais a câmera ou melhore a iluminação',
+        });
+      }
     } else {
       toast.error('Erro ao capturar imagem', {
         description: 'Tente novamente',

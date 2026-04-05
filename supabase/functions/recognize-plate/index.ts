@@ -54,32 +54,36 @@ Deno.serve(async (req) => {
 
     try {
       const keyData = await getNextApiKey();
-      apiKey = keyData.api_key;
+      apiKey = keyData.api_key.trim(); // TRIMMING the key here is crucial!
       keyId = keyData.key_id;
-      console.log('Using API key from database rotation system');
+      console.log(`Using API key from database rotation system (Key ID: ${keyId})`);
     } catch (error) {
-      console.log('Database API keys not available, falling back to env variable');
+      console.log('Database API keys not available, falling back to env variable', error);
       const envKey = Deno.env.get('PLATE_RECOGNIZER_API_KEY');
       if (!envKey) {
-        console.error('No API keys available');
+        console.error('No API keys available: DB query failed and ENVs missing');
         return new Response(
-          JSON.stringify({ error: 'API key not configured' }),
+          JSON.stringify({ error: 'Nenhuma chave de API configurada no sistema' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      apiKey = envKey;
+      apiKey = envKey.trim();
       keyId = '';
+      console.log('Using fallback env API key');
     }
 
     // Remove data URL prefix if present
     const base64Image = image.replace(/^data:image\/\w+;base64,/, '');
+    
+    console.log(`Image received. Base64 length: ${base64Image.length} characters`);
 
-    console.log('Calling Plate Recognizer API...');
+    console.log(`Calling Plate Recognizer API with ${keyId ? 'DB key: ' + keyId : 'Environment fallback key'}...`);
 
     const formData = new FormData();
     formData.append('upload', base64Image);
     formData.append('regions', 'br'); // Brazil region for better accuracy
 
+    const start = Date.now();
     const response = await fetch('https://api.platerecognizer.com/v1/plate-reader/', {
       method: 'POST',
       headers: {
@@ -87,6 +91,9 @@ Deno.serve(async (req) => {
       },
       body: formData,
     });
+
+    const duration = Date.now() - start;
+    console.log(`API response received in ${duration}ms. Status: ${response.status}`);
 
     if (!response.ok) {
       const errorText = await response.text();
@@ -104,7 +111,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Plate Recognizer API success!');
+    console.log(`API success! Found ${data.results?.length || 0} results.`);
 
     if (keyId) {
       await incrementApiKeyUsage(keyId);
@@ -112,11 +119,7 @@ Deno.serve(async (req) => {
 
     // Function to check if plate matches Brazilian format (Legacy or Mercosul)
     const isValidBrazilianPlate = (plate: string): boolean => {
-      // Common pattern: 7 characters, always starts with 3 letters
-      // 1-3: letters
-      // 4: digit
-      // 5: letter (mercosul) OR digit (legacy)
-      // 6-7: digits
+      // 3 letters + 1 digit + 1 letter/digit + 2 digits
       const pattern = /^[A-Z]{3}[0-9][A-Z0-9][0-9]{2}$/;
       return pattern.test(plate);
     };
@@ -137,7 +140,11 @@ Deno.serve(async (req) => {
       })
       .filter((p: any) => isValidBrazilianPlate(p.plate));
 
-    console.log(`Results: ${data.results?.length || 0} total, ${plates.length} validated as Brazilian format`);
+    console.log(`Validated as Brazilian format: ${plates.length}`);
+    if (data.results?.length > 0 && plates.length === 0) {
+      console.log('Detected plates but none matched Brazilian format:', data.results.map((r: any) => r.plate));
+    }
+    
     if (plates.length > 0) {
       console.log('Detected plates:', plates.map((p: any) => p.plate).join(', '));
     }

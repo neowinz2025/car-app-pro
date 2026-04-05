@@ -83,7 +83,7 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
 
   const { hasPlate, addPlate: addToCache, getPlate } = usePlateCache();
 
-  const recognizePlate = useCallback(async (imageBase64: string): Promise<RecognizedPlate[]> => {
+  const recognizePlate = useCallback(async (imageBase64: string, forceRefresh = false): Promise<RecognizedPlate[]> => {
     if (processingRef.current) {
       return [];
     }
@@ -100,13 +100,13 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
 
       if (fnError) {
         console.error('Edge function error:', fnError);
-        setError('Erro ao processar imagem');
+        setError('Erro de conexão ao servidor de reconhecimento');
         return [];
       }
 
       if (data.error) {
         console.error('API error:', data.error);
-        setError(data.error);
+        setError(data.details || data.error);
         return [];
       }
 
@@ -129,12 +129,12 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
           addToCache(upperPlate, bestPlate.region, bestPlate.confidence);
         }
 
-        // Only trigger callback if it's a new plate
-        if (upperPlate !== lastProcessedPlateRef.current) {
+        // Only trigger callback if it's a new plate OR forceRefresh is requested
+        if (forceRefresh || upperPlate !== lastProcessedPlateRef.current) {
           lastProcessedPlateRef.current = upperPlate;
           setLastDetectedPlate(upperPlate);
-          playSuccessBeep(); // Play enhanced sound on detection
-          vibrate(); // Vibrate device
+          playSuccessBeep(); 
+          vibrate(); 
           onPlateDetected?.(upperPlate);
         }
       }
