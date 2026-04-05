@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -32,6 +32,8 @@ async function incrementApiKeyUsage(keyId: string) {
 }
 
 Deno.serve(async (req) => {
+  console.log('Recognize-plate function triggered');
+
   if (req.method === "OPTIONS") {
     return new Response(null, {
       status: 200,

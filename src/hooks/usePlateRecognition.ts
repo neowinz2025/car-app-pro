@@ -99,8 +99,8 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
       });
 
       if (fnError) {
-        console.error('Edge function error:', fnError);
-        setError('Erro de conexão ao servidor de reconhecimento');
+        console.error('Edge function invocation error:', fnError);
+        setError(`Erro de conexão: ${fnError.message || 'Servidor indisponível'}`);
         return [];
       }
 
