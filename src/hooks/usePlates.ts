@@ -60,16 +60,27 @@ export function usePlates(storeId?: string) {
     setPlates(currentPlates);
   }, []);
 
-  const addPlate = useCallback(async (plateText: string): Promise<PlateRecord | null> => {
+  const addPlate = useCallback(async (plateText: string): Promise<{ success: boolean; plate?: PlateRecord; error?: string }> => {
     const normalizedPlate = plateText.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-    if (normalizedPlate.length < 7) return null;
+    if (normalizedPlate.length < 7) {
+      return { success: false, error: 'Placa inválida. Digite 7 caracteres.' };
+    }
 
     const timestamp = new Date();
-    let newPlateObj: PlateRecord | null = null;
     let isDuplicate = false;
+    let existingPlate: PlateRecord | undefined;
 
-    // Use a temporary state check to determine if it's a duplicate or exists
+    // We do a sync check against the current plates state
+    // Note: since we use functional update below, we also check there for absolute certainty
+    // but we need a preliminary check to decide if we even try to add or update.
+    
+    // Instead of relying on outer variables being set in the updater,
+    // we return the result from a local variable that we track.
+    
+    let resultPlate: PlateRecord | undefined;
+    let duplicateError = false;
+
     setPlates(prev => {
       // Check if plate already exists in the CURRENT SESSION and CURRENT STEP
       const existsInCurrentStep = prev.some(p => {
@@ -80,15 +91,14 @@ export function usePlates(storeId?: string) {
       });
 
       if (existsInCurrentStep) {
-        console.log(`Placa ${normalizedPlate} já foi registrada em ${activeStep} na sessão atual`);
-        isDuplicate = true;
+        duplicateError = true;
         return prev;
       }
 
       // Check if plate exists in current session but in different step - update it
-      const existingPlate = prev.find(p => p.plate === normalizedPlate);
+      const existing = prev.find(p => p.plate === normalizedPlate);
 
-      if (existingPlate) {
+      if (existing) {
         // Update existing plate in current session with new step
         const updates: Partial<PlateRecord> = {
           timestamp,
@@ -99,30 +109,30 @@ export function usePlates(storeId?: string) {
           p.plate === normalizedPlate ? { ...p, ...updates } : p
         );
         savePlates(updated);
-        newPlateObj = { ...existingPlate, ...updates };
+        resultPlate = { ...existing, ...updates };
         return updated;
       } else {
         // Add new plate to current session
-        newPlateObj = {
+        const newPlate: PlateRecord = {
           id: `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
           plate: normalizedPlate,
           timestamp,
           loja: activeStep === 'loja',
           lavaJato: activeStep === 'lavaJato',
         };
-        const updated = [newPlateObj, ...prev];
+        const updated = [newPlate, ...prev];
         savePlates(updated);
+        resultPlate = newPlate;
         return updated;
       }
     });
 
-    // If it was a duplicate, we return null after the setPlates call
-    if (isDuplicate) return null;
-    
-    // We need to wait a tiny bit or just use the local newPlateObj
-    // Since we are in a Promise, we can proceed with DB save
-    if (newPlateObj) {
-      const finalPlate = newPlateObj as PlateRecord;
+    if (duplicateError) {
+      return { success: false, error: 'Placa já registrada nesta etapa.' };
+    }
+
+    if (resultPlate) {
+      const finalPlate = resultPlate;
       try {
         const { data, error } = await (supabase
           .from('plate_records' as any) as any)
@@ -151,10 +161,10 @@ export function usePlates(storeId?: string) {
       } catch (error) {
         console.error('Error saving plate to database:', error);
       }
-      return finalPlate;
+      return { success: true, plate: finalPlate };
     }
 
-    return null;
+    return { success: false, error: 'Erro desconhecido ao adicionar placa.' };
   }, [activeStep, storeId]); // Removed 'plates' from dependency array!
 
   const removePlate = useCallback((id: string) => {

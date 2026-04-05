@@ -13,7 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 interface ScannerViewProps {
   activeStep: ActiveStep;
   onSetActiveStep: (step: ActiveStep) => void;
-  onAddPlate: (plate: string) => Promise<PlateRecord | null>;
+  onAddPlate: (plate: string) => Promise<{ success: boolean; plate?: PlateRecord; error?: string }>;
   onRemovePlate: (id: string) => void;
   onRemoveFromDB: (dbId: string) => Promise<boolean>;
 }
@@ -40,6 +40,7 @@ export function ScannerView({
   const [suggestions, setSuggestions] = useState<PlateSuggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   const {
     videoRef,
@@ -63,12 +64,9 @@ export function ScannerView({
     
     // Abrir o modo manual com a placa para correção
     setManualPlate(lastAddedPlate.plate);
+    setIsEditing(true);
     setShowManualInput(true);
     setShowSuccessFlash(false);
-    
-    // Guardar a referência para remover quando confirmar a nova
-    // No nosso fluxo, o usuário quer que seja removida "quando confirmar a edição"
-    // Então passamos essa info para o handleManualAdd ou similar
   }, [lastAddedPlate]);
 
   const handlePlateDetected = useCallback(async (plate: string) => {
@@ -80,21 +78,22 @@ export function ScannerView({
     console.log('Plate detected, adding:', plate);
     const result = await onAddPlate(plate);
     
-    if (result) {
-      console.log('Capture success:', result.plate);
-      setDetectedPlateText(result.plate);
-      setLastAddedPlate(result);
+    if (result.success && result.plate) {
+      console.log('Capture success:', result.plate.plate);
+      setDetectedPlateText(result.plate.plate);
+      setLastAddedPlate(result.plate);
       setShowSuccessFlash(true);
       // Auto-hide success flash after 3 seconds
       setTimeout(() => setShowSuccessFlash(false), 3000);
 
       toast.success('✓ PLACA COLETADA!', {
-        description: result.plate,
+        description: result.plate.plate,
         duration: 4000,
         action: {
           label: 'Editar',
           onClick: () => {
-            setManualPlate(result.plate);
+            setManualPlate(result.plate!.plate);
+            setIsEditing(true);
             setShowManualInput(true);
             setShowSuccessFlash(false);
           }
@@ -107,10 +106,7 @@ export function ScannerView({
         },
       });
     } else {
-      console.log('Capture result was null (likely duplicate)');
-      toast.info('Placa já registrada', {
-        description: `A placa ${plate.toUpperCase()} já foi coletada nesta etapa.`,
-      });
+      console.log('Capture result failed or duplicate');
     }
   }, [activeStep, onAddPlate]);
 
@@ -235,8 +231,8 @@ export function ScannerView({
     if (manualPlate.trim()) {
       const plateToConfirm = manualPlate.trim();
       
-      // Se estamos editando uma placa capturada agora, removemos a anterior primeiro
-      if (lastAddedPlate && lastAddedPlate.plate !== plateToConfirm.toUpperCase()) {
+      // SÓ removemos a anterior se estivermos explicitamente em modo edição
+      if (isEditing && lastAddedPlate && lastAddedPlate.plate !== plateToConfirm.toUpperCase()) {
         onRemovePlate(lastAddedPlate.id);
         if (lastAddedPlate.dbId) {
           onRemoveFromDB(lastAddedPlate.dbId);
@@ -244,9 +240,9 @@ export function ScannerView({
       }
 
       const result = await onAddPlate(plateToConfirm);
-      if (result) {
+      if (result.success && result.plate) {
         setDetectedPlateText(plateToConfirm.toUpperCase());
-        setLastAddedPlate(result);
+        setLastAddedPlate(result.plate);
         setShowSuccessFlash(true);
         setTimeout(() => setShowSuccessFlash(false), 3000);
 
@@ -257,7 +253,7 @@ export function ScannerView({
             label: 'Editar',
             onClick: () => {
               setManualPlate(plateToConfirm.toUpperCase());
-              setLastAddedPlate(result);
+              setIsEditing(true);
               setShowManualInput(true);
               setShowSuccessFlash(false);
             }
@@ -273,9 +269,10 @@ export function ScannerView({
         setShowManualInput(false);
         setSuggestions([]);
         setShowSuggestions(false);
+        setIsEditing(false); // Reset editing flag
       } else {
-        toast.error('Placa inválida', {
-          description: 'Digite uma placa válida com 7 caracteres',
+        toast.error('Erro no registro', {
+          description: result.error || 'Digite uma placa válida com 7 caracteres',
         });
       }
     }
@@ -493,7 +490,10 @@ export function ScannerView({
       {/* Manual Input Button */}
       <Button
         variant="outline"
-        onClick={() => setShowManualInput(!showManualInput)}
+        onClick={() => {
+          setShowManualInput(!showManualInput);
+          if (showManualInput) setIsEditing(false); // Reset editing when closing
+        }}
         className="w-full h-12 rounded-2xl text-base font-semibold border-2"
       >
         <Plus className="w-5 h-5 mr-2" />
@@ -516,7 +516,7 @@ export function ScannerView({
               value={manualPlate}
               onChange={(e) => handleManualPlateChange(e.target.value)}
               className="h-16 text-center text-2xl font-mono font-bold uppercase bg-muted rounded-2xl border-2"
-              maxLength={7}
+              maxLength={10}
               autoFocus
             />
             {isSearching && (
