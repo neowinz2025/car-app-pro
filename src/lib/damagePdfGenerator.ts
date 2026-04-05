@@ -33,36 +33,55 @@ export async function generateDamagePDF(data: DamageReportData): Promise<Blob> {
 
   // Header Banner Background (Red-ish to indicate Damage)
   pdf.setFillColor(239, 68, 68); // Tailwind red-500
-  pdf.rect(0, 0, pageWidth, 40, 'F');
+  pdf.rect(0, 0, pageWidth, 28, 'F'); // Smaller banner height
 
-  yPosition = 15;
+  yPosition = 10;
 
-  // Title inside banner
-  pdf.setFontSize(22);
+  // Title inside banner, moved to the Right
+  pdf.setFontSize(18);
   pdf.setFont('helvetica', 'bold');
   pdf.setTextColor(255, 255, 255); // White text
-  pdf.text('LAUDO DE AVARIA VEICULAR', margin, yPosition + 8);
+  pdf.text('LAUDO DE AVARIA VEICULAR', pageWidth - margin, yPosition + 6, { align: 'right' });
 
-  // Logo over banner
+  // Store information on the Left
   if (data.storeLogo) {
     try {
       const logoData = await loadImageAsDataURL(data.storeLogo);
-      const logoHeight = 15;
-      const logoWidth = 30;
-      pdf.addImage(logoData, 'PNG', pageWidth - margin - logoWidth, yPosition - 2, logoWidth, logoHeight);
+      const logoHeight = 12;
+      const logoWidth = 24;
+      pdf.addImage(logoData, 'PNG', margin, yPosition - 2, logoWidth, logoHeight);
+      
+      // Label next to the logo
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('Origem / Loja:', margin + logoWidth + 4, yPosition + 2);
+      
+      pdf.setFontSize(11);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(data.storeName ? data.storeName.toUpperCase() : '', margin + logoWidth + 4, yPosition + 7);
     } catch (error) {
       console.error('Error loading store logo:', error);
       if (data.storeName) {
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text('Origem / Loja:', margin, yPosition + 2);
+        
         pdf.setFontSize(12);
-        pdf.text(data.storeName.toUpperCase(), pageWidth - margin, yPosition + 8, { align: 'right' });
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(data.storeName.toUpperCase(), margin, yPosition + 7);
       }
     }
   } else if (data.storeName) {
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text('Origem / Loja:', margin, yPosition + 2);
+    
     pdf.setFontSize(12);
-    pdf.text(data.storeName.toUpperCase(), pageWidth - margin, yPosition + 8, { align: 'right' });
+    pdf.setFont('helvetica', 'bold');
+    pdf.text(data.storeName.toUpperCase(), margin, yPosition + 7);
   }
 
-  yPosition = 50;
+  yPosition = 40;
 
   // Helper method to draw a beautiful section box
   const drawSection = (title: string, yStart: number) => {
