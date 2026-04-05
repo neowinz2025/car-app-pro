@@ -8,25 +8,37 @@ const corsHeaders = {
 };
 
 async function getNextApiKey() {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing env vars for Supabase internal client. URL:', !!supabaseUrl, 'KEY:', !!supabaseKey);
+    throw new Error('Supabase ENV variables missing internally');
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   const { data, error } = await supabase.rpc('get_next_api_key');
 
-  if (error || !data || data.length === 0) {
-    throw new Error('No API keys available');
+  if (error) {
+    console.error('RPC Error (get_next_api_key):', error);
+    throw new Error(`DB Error: ${error.message}`);
+  }
+
+  if (!data || data.length === 0) {
+    throw new Error('No API keys available in the database');
   }
 
   return data[0];
 }
 
 async function incrementApiKeyUsage(keyId: string) {
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  
+  if (!supabaseUrl || !supabaseKey) return; // Silent fail if missing
+
+  const supabase = createClient(supabaseUrl, supabaseKey);
 
   await supabase.rpc('increment_api_key_usage', { p_key_id: keyId });
 }
