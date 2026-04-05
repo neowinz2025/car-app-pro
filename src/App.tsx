@@ -6,11 +6,18 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/AdminDashboard"; // Legacy Dashboard
 import AdminLayout from "./pages/admin/AdminLayout";
 import AdminReportsPage from "./pages/admin/AdminReportsPage";
 import AdminPlatesPage from "./pages/admin/AdminPlatesPage";
 import AdminDamagedPage from "./pages/admin/AdminDamagedPage";
+import AdminBateFiscoPage from "./pages/admin/AdminBateFiscoPage";
+import AdminShiftsPage from "./pages/admin/AdminShiftsPage";
+import AdminUsersPage from "./pages/admin/AdminUsersPage";
+import AdminReservationsPage from "./pages/admin/AdminReservationsPage";
+import AdminFileUploadsPage from "./pages/admin/AdminFileUploadsPage";
+import AdminAdminsPage from "./pages/admin/AdminAdminsPage";
+import AdminApiKeysPage from "./pages/admin/AdminApiKeysPage";
+import AdminStoresPage from "./pages/admin/AdminStoresPage";
 import UserLogin from "./pages/UserLogin";
 import { SharedReportView } from "@/components/reports/SharedReportView";
 import ProjectionDashboard from "./pages/ProjectionDashboard";
@@ -36,10 +43,15 @@ const App = () => (
             <Route path="reports" element={<AdminReportsPage />} />
             <Route path="plates" element={<AdminPlatesPage />} />
             <Route path="damaged" element={<AdminDamagedPage />} />
+            <Route path="bate-fisco" element={<AdminBateFiscoPage />} />
+            <Route path="shifts" element={<AdminShiftsPage />} />
+            <Route path="users" element={<AdminUsersPage />} />
+            <Route path="reservations" element={<AdminReservationsPage />} />
+            <Route path="file-uploads" element={<AdminFileUploadsPage />} />
+            <Route path="admins" element={<AdminAdminsPage />} />
+            <Route path="api-keys" element={<AdminApiKeysPage />} />
+            <Route path="stores" element={<AdminStoresPage />} />
           </Route>
-          
-          {/* Legacy route kept for temporarily avoiding breakage while refactoring */}
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
