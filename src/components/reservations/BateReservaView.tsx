@@ -14,8 +14,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { useBateReserva, buildReportText, STATUS_OPTIONS, BateReservaRow } from '@/hooks/useBateReserva';
+import { buildReportText, STATUS_OPTIONS, BateReservaRow } from '@/hooks/useBateReserva';
+import { useBateReserva } from '@/hooks/useBateReserva';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const STATUS_COLORS: Record<string, string> = {
   OK: 'bg-green-100 text-green-700 border-green-300',
@@ -159,6 +161,16 @@ const DEFAULT_CATEGORIES = [
 ];
 
 export function BateReservaView() {
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [newCategory, setNewCategory] = useState('');
+  const [copied, setCopied] = useState(false);
+  
+  // Smart Paste State
+  const [showSmartPaste, setShowSmartPaste] = useState(false);
+  const [pasteText, setPasteText] = useState('');
+  const [hideEmpty, setHideEmpty] = useState(false); // Hide empty categories toggle
+
   const {
     selectedDate,
     report,
@@ -173,11 +185,8 @@ export function BateReservaView() {
     save,
     copyToClipboard,
     load,
+    injectSmartPaste
   } = useBateReserva();
-
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [newCategory, setNewCategory] = useState('');
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     load(selectedDate);
@@ -200,13 +209,59 @@ export function BateReservaView() {
     setNewCategory('');
   };
 
-  const customCategories = report.rows.filter((r) => !DEFAULT_CATEGORIES.includes(r.category));
+  const handleSmartPasteSubmit = () => {
+    const importedCount = injectSmartPaste(pasteText);
+    if (importedCount > 0) {
+      toast.success(`${importedCount} reservas importadas automaticamente!`);
+      setShowSmartPaste(false);
+      setPasteText('');
+      setHideEmpty(true); // Auto-hide empties to show what was imported beautifully
+    } else {
+      toast.error('Nenhuma reserva válida detectada no formato (Cole direto da tabela do Uni+)');
+    }
+  };
+
+  const visibleRows = hideEmpty ? activeRows : report.rows;
 
   return (
     <div className="space-y-6 relative">
       {loading && (
         <div className="absolute inset-0 z-10 flex justify-center items-start pt-16 bg-background/60 backdrop-blur-sm rounded-lg">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        </div>
+      )}
+
+      {/* Smart Paste Modal */}
+      {showSmartPaste && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <Card className="w-full max-w-xl animate-in slide-in-from-bottom-10 fade-in zoom-in-95">
+            <CardHeader>
+              <CardTitle className="text-xl flex items-center gap-2">
+                <CheckCheck className="w-5 h-5 text-blue-500" />
+                Preenchimento Mágico (Smart Paste)
+              </CardTitle>
+              <CardDescription>
+                Vá até a tabela "Buscar Reserva" no <strong>uni+</strong>, selecione as linhas das reservas pendentes, dê <strong>Ctrl+C</strong> e cole aqui embaixo com <strong>Ctrl+V</strong>.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <textarea
+                value={pasteText}
+                onChange={(e) => setPasteText(e.target.value)}
+                placeholder="Exemplo colado:&#10;BSB2  |  31284859  |  SEGURPRO...  |  12/05/2026 10:00  |  CA  |  CFA..."
+                className="w-full h-48 p-4 text-sm font-mono border-2 border-dashed border-blue-300 rounded-xl bg-blue-50/50 focus:outline-none focus:border-blue-500 transition-colors"
+                autoFocus
+              />
+              <div className="flex justify-end gap-3 mt-4">
+                <Button variant="outline" onClick={() => setShowSmartPaste(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSmartPasteSubmit} disabled={!pasteText.trim()} className="bg-blue-600 hover:bg-blue-700 text-white">
+                  Extrair e Preencher
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
@@ -253,13 +308,21 @@ export function BateReservaView() {
 
             <div className="flex items-center gap-2 flex-wrap">
               <Button
+                size="sm"
+                className="gap-1.5 text-xs bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white border-0 shadow-md mr-2"
+                onClick={() => setShowSmartPaste(true)}
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Importar Uni+ (Ctrl+V)
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 className="gap-1.5 text-xs"
                 onClick={() => setPreviewOpen((o) => !o)}
               >
                 {previewOpen ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                {previewOpen ? 'Ocultar' : 'Preview'}
+                {previewOpen ? 'Ocultar WA' : 'Preview WA'}
               </Button>
               <Button
                 variant="outline"
@@ -303,7 +366,12 @@ export function BateReservaView() {
         </Card>
         <Card className="border-0 bg-red-500/5 col-span-2 md:col-span-1">
           <CardContent className="pt-4 pb-3">
-            <p className="text-xs text-muted-foreground font-medium">Com Falta</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground font-medium">Com Falta</p>
+              {report.rows.filter((r) => r.status.startsWith('FALTA') && r.total > 0).length > 0 && (
+                 <span className="flex w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+              )}
+            </div>
             <p className="text-2xl font-bold text-red-500">
               {report.rows.filter((r) => r.status.startsWith('FALTA') && r.total > 0).length}
             </p>
@@ -339,41 +407,59 @@ export function BateReservaView() {
       )}
 
       <Card>
-        <CardHeader className="pb-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <CardHeader className="pb-3 border-b border-border/50">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <CardTitle>Categorias de Veículos</CardTitle>
               <CardDescription>
                 {formatDateBR(selectedDate)} — informe total, horários e status por grupo
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Input
-                value={newCategory}
-                onChange={(e) => setNewCategory(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                placeholder="Nova categ."
-                className="w-28 h-8 text-sm uppercase"
-                maxLength={6}
-              />
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs h-8"
-                onClick={handleAddCategory}
-                disabled={!newCategory.trim()}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Adicionar
-              </Button>
+            <div className="flex items-center gap-3">
+              {/* Ocultar Vazios Toggle */}
+              <label className="flex items-center gap-2 cursor-pointer text-sm font-medium bg-muted/30 px-3 py-1.5 rounded-lg border border-border">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={hideEmpty}
+                    onChange={(e) => setHideEmpty(e.target.checked)}
+                  />
+                  <div className={cn("w-10 h-5 rounded-full transition-colors", hideEmpty ? "bg-primary" : "bg-muted-foreground/30")}></div>
+                  <div className={cn("absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform", hideEmpty ? "translate-x-5" : "")}></div>
+                </div>
+                <span>Ocultar vazios</span>
+              </label>
+              
+              <div className="h-6 w-px bg-border"></div>
+
+              <div className="flex items-center gap-2">
+                <Input
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value.toUpperCase())}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                  placeholder="Nova categ."
+                  className="w-24 h-8 text-sm uppercase rounded-lg"
+                  maxLength={6}
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 text-xs h-8 rounded-lg"
+                  onClick={handleAddCategory}
+                  disabled={!newCategory.trim()}
+                >
+                  <Plus className="w-3 h-3" />
+                </Button>
+              </div>
             </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50">
+              <thead className="sticky top-0 bg-muted/90 backdrop-blur z-10 shadow-sm">
+                <tr>
                   <th className="text-left py-2.5 px-2 font-semibold text-muted-foreground w-20">GRUPO</th>
                   <th className="text-center py-2.5 px-2 font-semibold text-muted-foreground w-20">TOTAL</th>
                   <th className="text-left py-2.5 px-2 font-semibold text-muted-foreground">
@@ -382,19 +468,29 @@ export function BateReservaView() {
                       <span className="text-[10px] font-normal text-muted-foreground/70">ex: 06:30, (4)10:00, 14:15</span>
                     </span>
                   </th>
-                  <th className="text-right py-2.5 px-2 font-semibold text-muted-foreground w-28">STATUS</th>
+                  <th className="text-right py-2.5 px-2 font-semibold text-muted-foreground w-28 pr-4">STATUS</th>
                 </tr>
               </thead>
               <tbody>
-                {report.rows.map((row) => (
-                  <CategoryRow
-                    key={row.category}
-                    row={row}
-                    onUpdate={(field, value) => updateRow(row.category, field, value)}
-                    onRemove={() => removeRow(row.category)}
-                    isCustom={!DEFAULT_CATEGORIES.includes(row.category)}
-                  />
-                ))}
+                {visibleRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-muted-foreground bg-muted/10">
+                      <p className="text-base font-semibold">Nenhuma categoria ativa encontrada</p>
+                      <p className="text-sm mt-1 mb-4">Adicione manualmente ou importe do Uni+</p>
+                      <Button variant="outline" onClick={() => setHideEmpty(false)}>Mostrar todas as categorias</Button>
+                    </td>
+                  </tr>
+                ) : (
+                  visibleRows.map((row) => (
+                    <CategoryRow
+                      key={row.category}
+                      row={row}
+                      onUpdate={(field, value) => updateRow(row.category, field, value)}
+                      onRemove={() => removeRow(row.category)}
+                      isCustom={!DEFAULT_CATEGORIES.includes(row.category)}
+                    />
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -403,33 +499,33 @@ export function BateReservaView() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm">Observações</CardTitle>
+          <CardTitle className="text-sm">Observações Adicionais</CardTitle>
         </CardHeader>
         <CardContent>
           <textarea
             value={report.notes || ''}
             onChange={(e) => updateNotes(e.target.value)}
-            placeholder="Adicione observações que serão incluídas no final do relatório..."
-            className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Adicione observações para colar ao final do relatório (opcional)..."
+            className="w-full min-h-[80px] rounded-xl border-2 border-border/50 bg-background px-4 py-3 text-sm resize-none focus:outline-none focus:border-primary/50 transition-colors"
           />
         </CardContent>
       </Card>
 
       <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground px-1 pb-2">
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-green-100 border border-green-300" />
+          <span className="w-4 h-4 rounded bg-green-100 border border-green-300 shadow-sm" />
           <span>OK</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-red-100 border border-red-300" />
-          <span>FALTA (define automaticamente a quantidade)</span>
+          <span className="w-4 h-4 rounded bg-red-100 border border-red-300 shadow-sm" />
+          <span>FALTA (define automaticamente a quantidade com base no total preenchido)</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-blue-100 border border-blue-300" />
+          <span className="w-4 h-4 rounded bg-blue-100 border border-blue-300 shadow-sm" />
           <span>LAVANDO</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-4 h-4 rounded bg-amber-100 border border-amber-300" />
+          <span className="w-4 h-4 rounded bg-amber-100 border border-amber-300 shadow-sm" />
           <span>OFICINA</span>
         </div>
       </div>

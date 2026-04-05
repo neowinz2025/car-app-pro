@@ -170,6 +170,72 @@ export function useBateReserva() {
     }));
   }, []);
 
+  const injectSmartPaste = useCallback((pastedText: string) => {
+    if (!pastedText.trim()) return 0;
+    
+    // Parse the pasted text
+    const lines = pastedText.split('\n');
+    const grouped: Record<string, string[]> = {};
+    let count = 0;
+
+    for (const line of lines) {
+      // Look for the pattern: date time \t group
+      // Example line piece: ... \t 05/04/2026 12:00 \t CA \t CFA ...
+      const match = line.match(/\d{2}\/\d{2}\/\d{4}\s+(\d{2}:\d{2})[\s\t]+([a-zA-Z0-9]{1,3})[\s\t]+/);
+      if (match) {
+        const time = match[1];
+        const group = match[2].toUpperCase();
+        if (!grouped[group]) grouped[group] = [];
+        grouped[group].push(time);
+        count++;
+      }
+    }
+
+    if (count === 0) return 0;
+
+    isDirty.current = true;
+    setReport((prev) => {
+      const newRows = [...prev.rows];
+      
+      // For each found group, aggregate and update
+      Object.entries(grouped).forEach(([cat, timesArray]) => {
+        // Sort times
+        timesArray.sort();
+        
+        // Count frequencies e.g. ['10:00', '10:00', '12:00'] -> '(2)10:00, 12:00'
+        const freq: Record<string, number> = {};
+        timesArray.forEach(t => { freq[t] = (freq[t] || 0) + 1; });
+        
+        const formattedTimes = Object.entries(freq).map(([time, c]) => {
+          return c > 1 ? `(${c})${time}` : time;
+        }).join(', ');
+
+        const existingIdx = newRows.findIndex(r => r.category === cat);
+        if (existingIdx >= 0) {
+          // Add to existing, avoiding duplicates if they paste incrementally
+          const currentTimes = newRows[existingIdx].times;
+          newRows[existingIdx] = {
+            ...newRows[existingIdx],
+            total: timesArray.length, // Override total
+            times: formattedTimes, // Override times
+            status: 'OK' // Reset status to prompt review
+          };
+        } else {
+          // Create new row
+          newRows.push({
+            category: cat,
+            total: timesArray.length,
+            times: formattedTimes,
+            status: 'OK'
+          });
+        }
+      });
+      return { ...prev, rows: newRows };
+    });
+
+    return count;
+  }, []);
+
   const save = useCallback(async () => {
     setSaving(true);
     try {
@@ -232,5 +298,6 @@ export function useBateReserva() {
     save,
     copyToClipboard,
     load,
+    injectSmartPaste,
   };
 }
