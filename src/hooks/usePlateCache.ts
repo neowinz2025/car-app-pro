@@ -63,7 +63,7 @@ export function usePlateCache() {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('plate_records')
         .select('plate, created_at')
         .gte('created_at', thirtyDaysAgo.toISOString())
@@ -94,6 +94,31 @@ export function usePlateCache() {
       }
     } catch (error) {
       console.error('Error syncing plate cache:', error);
+    }
+  }, [cache]);
+
+  // Search plates in the database across all records natively (Fix for DamagedVehiclesView)
+  const searchPlates = useCallback(async (query: string): Promise<string[]> => {
+    if (!query || query.length < 3) return [];
+    
+    try {
+      // First, try from the local cache if available and matches
+      const cacheResults = Array.from(cache.keys()).filter(p => p.includes(query.toUpperCase()));
+      
+      // Hit the database for a broader search
+      const { data, error } = await (supabase as any)
+        .from('plate_records')
+        .select('plate')
+        .ilike('plate', `%${query}%`)
+        .limit(20);
+        
+      if (error) throw error;
+      
+      const dbResults = data ? data.map(r => r.plate) : [];
+      return Array.from(new Set([...cacheResults, ...dbResults]));
+    } catch (err) {
+      console.error('Error searching plates:', err);
+      return [];
     }
   }, [cache]);
 
@@ -149,6 +174,7 @@ export function usePlateCache() {
     addPlate,
     clearCache,
     syncWithDatabase,
+    searchPlates,
     getCacheStats,
     isLoading,
     cacheSize: cache.size,
