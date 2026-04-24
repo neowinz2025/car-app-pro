@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, LogIn } from 'lucide-react';
+import { Shield, LogIn, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +10,8 @@ import { toast } from 'sonner';
 export default function UserLogin() {
   const navigate = useNavigate();
   const [cpf, setCpf] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const formatCPF = (value: string) => {
@@ -41,6 +43,11 @@ export default function UserLogin() {
       return;
     }
 
+    if (!password) {
+      toast.error('Preencha a senha');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -54,7 +61,7 @@ export default function UserLogin() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${supabaseAnonKey}`,
         },
-        body: JSON.stringify({ cpf }),
+        body: JSON.stringify({ cpf, password }),
       });
 
       const data = await response.json();
@@ -115,6 +122,33 @@ export default function UserLogin() {
                 maxLength={14}
                 autoComplete="username"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Digite sua senha"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  autoComplete="current-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Senha padrão: últimos 4 dígitos do CPF
+              </p>
             </div>
 
             <Button

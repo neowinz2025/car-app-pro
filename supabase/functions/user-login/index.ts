@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import * as bcrypt from "npm:bcryptjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,6 +10,7 @@ const corsHeaders = {
 
 interface LoginRequest {
   cpf: string;
+  password: string;
 }
 
 Deno.serve(async (req: Request) => {
@@ -24,11 +26,18 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { cpf }: LoginRequest = await req.json();
+    const { cpf, password }: LoginRequest = await req.json();
 
     if (!cpf) {
       return new Response(
         JSON.stringify({ error: 'CPF é obrigatório' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!password) {
+      return new Response(
+        JSON.stringify({ error: 'Senha é obrigatória' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -62,7 +71,7 @@ Deno.serve(async (req: Request) => {
 
     if (!user) {
       return new Response(
-        JSON.stringify({ error: 'CPF não encontrado no sistema' }),
+        JSON.stringify({ error: 'CPF ou senha incorretos' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -72,6 +81,41 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: 'Usuário inativo. Contate o administrador.' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Buscar e validar a senha
+    const { data: userPassword, error: passwordError } = await supabase
+      .from('user_passwords')
+      .select('password_hash')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (passwordError) {
+      console.error('Error fetching password:', passwordError);
+      return new Response(
+        JSON.stringify({ error: 'Erro ao verificar credenciais' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!userPassword) {
+      // Sem senha cadastrada — fallback: aceitar os 4 últimos dígitos do CPF
+      const defaultPassword = cleanCPF.slice(-4);
+      if (password !== defaultPassword) {
+        return new Response(
+          JSON.stringify({ error: 'CPF ou senha incorretos' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else {
+      // Verificar senha com bcrypt
+      const isPasswordValid = bcrypt.compareSync(password, userPassword.password_hash);
+      if (!isPasswordValid) {
+        return new Response(
+          JSON.stringify({ error: 'CPF ou senha incorretos' }),
+          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
     }
 
     await supabase
