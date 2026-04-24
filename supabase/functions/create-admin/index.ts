@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+import * as bcrypt from "npm:bcryptjs";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -115,9 +115,8 @@ Deno.serve(async (req) => {
     }
 
     console.log(`[create-admin] Criptografando senha para: ${username}...`);
-    // Usando bcrypt async nativo do deno via url q funciona
-    const salt = await bcrypt.genSalt(8);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const salt = bcrypt.genSaltSync(10);
+    const passwordHash = bcrypt.hashSync(password, salt);
 
     console.log(`[create-admin] Inserindo registro admin no BD...`);
     const { data: newAdmin, error } = await supabase
