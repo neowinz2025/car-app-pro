@@ -1,0 +1,48 @@
+{
+  "project_id": "gmttgnhhtueurxuwchob",
+  "functions": [
+    {
+      "slug": "recognize-plate",
+      "importMap": "./import_map.json"
+    },
+    {
+      "slug": "admin-login"
+    },
+    {
+      "slug": "create-admin"
+    },
+    {
+      "slug": "create-user"
+    },
+    {
+      "slug": "user-login"
+    },
+    {
+      "slug": "create-store"
+    },
+    {
+      "slug": "update-store"
+    },
+    {
+      "slug": "delete-store"
+    },
+    {
+      "slug": "manage-admin"
+    },
+    {
+      "slug": "create-admin"
+    },
+    {
+      "slug": "toggle-user-status"
+    },
+    {
+      "slug": "update-user"
+    },
+    {
+      "slug": "delete-user"
+    },
+    {
+      "slug": "delete-report"
+    }
+  ]
+}
