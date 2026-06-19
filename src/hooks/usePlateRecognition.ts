@@ -104,6 +104,12 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
         return [];
       }
 
+      if (!data) {
+        console.error('No data returned from recognize-plate function');
+        setError('Nenhuma resposta do servidor');
+        return [];
+      }
+
       if (data.error) {
         console.error('API error:', data.error);
         setError(data.details || data.error);
@@ -148,7 +154,7 @@ export function usePlateRecognition(options: UsePlateRecognitionOptions = {}) {
       processingRef.current = false;
       setIsProcessing(false);
     }
-  }, [onPlateDetected, confidenceThreshold, hasPlate, getPlate, addToCache]);
+  }, [onPlateDetected, confidenceThreshold, getPlate, addToCache]);
 
   const resetLastPlate = useCallback(() => {
     lastProcessedPlateRef.current = null;

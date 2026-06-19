@@ -72,18 +72,18 @@ export function useCamera(options: UseCameraOptions = {}) {
   }, []);
 
   const captureFrame = useCallback((): string | null => {
-    if (!videoRef.current || !isActive) return null;
-    
+    if (!videoRef.current) return null;
+
     const canvas = document.createElement('canvas');
     canvas.width = videoRef.current.videoWidth;
     canvas.height = videoRef.current.videoHeight;
-    
+
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
-    
+
     ctx.drawImage(videoRef.current, 0, 0);
     return canvas.toDataURL('image/jpeg', 0.8);
-  }, [isActive]);
+  }, []);
 
   const toggleFlashlight = useCallback(async (enabled: boolean) => {
     if (!streamRef.current) return false;

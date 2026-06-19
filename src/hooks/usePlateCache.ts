@@ -95,7 +95,7 @@ export function usePlateCache() {
     } catch (error) {
       console.error('Error syncing plate cache:', error);
     }
-  }, [cache]);
+  }, []);
 
   // Search plates in the database across all records natively (Fix for DamagedVehiclesView)
   const searchPlates = useCallback(async (query: string): Promise<string[]> => {

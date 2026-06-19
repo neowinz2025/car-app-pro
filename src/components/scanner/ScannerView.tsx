@@ -57,7 +57,7 @@ export function ScannerView({
   // Sync cache with database on mount
   useEffect(() => {
     syncWithDatabase();
-  }, [syncWithDatabase]);
+  }, []);
 
   const handleEditLastPlate = useCallback(() => {
     if (!lastAddedPlate) return;

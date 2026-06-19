@@ -87,14 +87,21 @@ Deno.serve(async (req) => {
     }
 
     // Remove data URL prefix if present
-    const base64Image = image.replace(/^data:image\/\w+;base64,/, '');
-    
+    let base64Image = image.replace(/^data:image\/\w+;base64,/, '');
+
     console.log(`Image received. Base64 length: ${base64Image.length} characters`);
 
     console.log(`Calling Plate Recognizer API with ${keyId ? 'DB key: ' + keyId : 'Environment fallback key'}...`);
 
+    // Convert base64 to binary data
+    const binaryString = atob(base64Image);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
     const formData = new FormData();
-    formData.append('upload', base64Image);
+    formData.append('upload', new Blob([bytes], { type: 'image/jpeg' }));
     formData.append('regions', 'br'); // Brazil region for better accuracy
 
     const start = Date.now();
