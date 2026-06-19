@@ -1,47 +1,11 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { crypto } from "https://deno.land/std@0.208.0/crypto/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
-
-interface AdminToken {
-  username: string;
-  token: string;
-  timestamp: number;
-}
-
-async function validateAdminToken(token: string): Promise<boolean> {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL");
-  const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-  if (!supabaseUrl || !supabaseKey) {
-    console.error("Missing Supabase configuration");
-    return false;
-  }
-
-  try {
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    const { data, error } = await supabase
-      .from("admins")
-      .select("id, username")
-      .limit(1);
-
-    if (error) {
-      console.error("Error querying admins:", error);
-      return false;
-    }
-
-    return true;
-  } catch (error) {
-    console.error("Error validating token:", error);
-    return false;
-  }
-}
 
 async function listApiKeys(supabase: any) {
   const { data, error } = await supabase
@@ -108,16 +72,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(
-        JSON.stringify({ error: "Missing or invalid authorization header" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const token = authHeader.substring(7);
-
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 

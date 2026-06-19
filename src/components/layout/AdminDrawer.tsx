@@ -34,6 +34,7 @@ const getMenuItems = (isSuperAdmin: boolean) => {
     { id: 'shifts' as const, icon: Users, label: 'Turnos', color: 'text-cyan-500', bg: 'bg-cyan-500/10' },
     { id: 'damaged' as const, icon: AlertTriangle, label: 'Avarias', color: 'text-red-500', bg: 'bg-red-500/10' },
     { id: 'users' as const, icon: Users, label: 'Usuários', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { id: 'api-keys' as const, icon: Key, label: 'API Keys', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
     { id: 'reservations' as const, icon: CalendarClock, label: 'Projeção de Reservas', color: 'text-teal-500', bg: 'bg-teal-500/10' },
     { id: 'file-uploads' as const, icon: FolderUp, label: 'Envio de Arquivos', color: 'text-sky-500', bg: 'bg-sky-500/10' },
   ];
@@ -41,7 +42,6 @@ const getMenuItems = (isSuperAdmin: boolean) => {
   if (isSuperAdmin) {
     baseItems.push({ id: 'admins' as const, icon: Shield, label: 'Administradores', color: 'text-primary', bg: 'bg-primary/10' });
     baseItems.push({ id: 'stores' as const, icon: Building2, label: 'Lojas', color: 'text-indigo-500', bg: 'bg-indigo-500/10' });
-    baseItems.push({ id: 'api-keys' as const, icon: Key, label: 'API Keys', color: 'text-yellow-500', bg: 'bg-yellow-500/10' });
   }
 
   return baseItems;

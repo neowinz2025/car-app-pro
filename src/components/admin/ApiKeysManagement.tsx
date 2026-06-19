@@ -6,8 +6,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { supabase } from '@/integrations/supabase/client';
-import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -31,22 +29,17 @@ export function ApiKeysManagement() {
   const [newKeyName, setNewKeyName] = useState('');
   const [newApiKey, setNewApiKey] = useState('');
   const [newLimit, setNewLimit] = useState('2500');
-  const { getSessionToken } = useAdminAuth();
 
   useEffect(() => {
     loadApiKeys();
   }, []);
 
   const callApiKeysFunction = async (action: string, body?: any) => {
-    const token = getSessionToken();
-    if (!token) {
-      toast.error('Sessão expirada. Faça login novamente.');
-      throw new Error('No admin token');
-    }
-
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-    if (!supabaseUrl) {
-      throw new Error('Supabase URL not configured');
+    const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase configuration missing');
     }
 
     const url = new URL(`${supabaseUrl}/functions/v1/manage-api-keys`);
@@ -56,7 +49,7 @@ export function ApiKeysManagement() {
       method: action === 'list' ? 'GET' : action === 'create' ? 'POST' : action === 'delete' ? 'DELETE' : 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
+        'Authorization': `Bearer ${supabaseKey}`,
       },
       body: body ? JSON.stringify(body) : undefined,
     });

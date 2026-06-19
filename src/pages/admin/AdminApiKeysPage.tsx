@@ -4,10 +4,10 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Navigate } from 'react-router-dom';
 
 export default function AdminApiKeysPage() {
-  const { isSuperAdmin } = useAdminAuth();
+  const { isAuthenticated } = useAdminAuth();
 
-  if (!isSuperAdmin()) {
-    return <Navigate to="/admin/reports" replace />;
+  if (!isAuthenticated) {
+    return <Navigate to="/admin/login" replace />;
   }
 
   return (
