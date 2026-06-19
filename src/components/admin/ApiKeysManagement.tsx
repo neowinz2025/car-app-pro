@@ -26,6 +26,7 @@ interface ApiKey {
 export function ApiKeysManagement() {
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState('');
   const [newApiKey, setNewApiKey] = useState('');
@@ -38,16 +39,26 @@ export function ApiKeysManagement() {
   const loadApiKeys = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      setError(null);
+
+      const { data, error: dbError } = await supabase
         .from('plate_recognizer_api_keys')
         .select('*')
         .order('priority', { ascending: true });
 
-      if (error) throw error;
+      if (dbError) {
+        console.error('Database error loading API keys:', dbError);
+        setError(`Erro ao carregar: ${dbError.message}`);
+        setApiKeys([]);
+        return;
+      }
+
       setApiKeys(data || []);
-    } catch (error) {
-      console.error('Error loading API keys:', error);
-      toast.error('Erro ao carregar chaves API');
+      setError(null);
+    } catch (err: any) {
+      console.error('Unexpected error loading API keys:', err);
+      setError(`Erro inesperado: ${err?.message || 'Tente novamente'}`);
+      setApiKeys([]);
     } finally {
       setLoading(false);
     }
@@ -220,6 +231,26 @@ export function ApiKeysManagement() {
         <div className="text-center py-8 text-muted-foreground">
           Carregando chaves...
         </div>
+      ) : error ? (
+        <Card className="bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5" />
+              <div>
+                <p className="font-semibold text-red-900 dark:text-red-100">Erro ao carregar chaves API</p>
+                <p className="text-sm text-red-800 dark:text-red-200 mt-1">{error}</p>
+                <Button
+                  onClick={loadApiKeys}
+                  variant="outline"
+                  size="sm"
+                  className="mt-3"
+                >
+                  Tentar Novamente
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       ) : apiKeys.length === 0 ? (
         <Card>
           <CardContent className="pt-6">
