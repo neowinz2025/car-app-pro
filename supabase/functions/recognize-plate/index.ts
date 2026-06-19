@@ -179,21 +179,22 @@ Deno.serve(async (req) => {
       bytes[i] = binaryString.charCodeAt(i);
     }
 
-    // Get all active API keys
+    // Get all active API keys from database
     const apiKeys = await getAllActiveApiKeys();
 
     if (apiKeys.length === 0) {
-      const envKey = Deno.env.get('PLATE_RECOGNIZER_API_KEY');
-      if (!envKey) {
-        return new Response(
-          JSON.stringify({ error: 'Nenhuma chave de API configurada no sistema' }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      apiKeys.push({ key_id: 'env', api_key: envKey.trim() });
+      console.error('❌ ERRO: Nenhuma chave de API ativa encontrada no banco de dados!');
+      console.error('📋 Você precisa adicionar chaves no painel: Admin → API KEYS');
+      return new Response(
+        JSON.stringify({
+          error: 'Nenhuma chave de API configurada no sistema',
+          details: 'Adicione chaves no painel de Admin → API KEYS'
+        }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    console.log(`Found ${apiKeys.length} active API keys. Starting failover...`);
+    console.log(`✅ Found ${apiKeys.length} active API keys. Starting failover...`);
 
     // Try each API key with automatic failover
     for (let i = 0; i < apiKeys.length; i++) {
