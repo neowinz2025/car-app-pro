@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -30,21 +31,49 @@ export function ApiKeysManagement() {
   const [newKeyName, setNewKeyName] = useState('');
   const [newApiKey, setNewApiKey] = useState('');
   const [newLimit, setNewLimit] = useState('2500');
+  const { getSessionToken } = useAdminAuth();
 
   useEffect(() => {
     loadApiKeys();
   }, []);
 
+  const callApiKeysFunction = async (action: string, body?: any) => {
+    const token = getSessionToken();
+    if (!token) {
+      toast.error('Sessão expirada. Faça login novamente.');
+      throw new Error('No admin token');
+    }
+
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (!supabaseUrl) {
+      throw new Error('Supabase URL not configured');
+    }
+
+    const url = new URL(`${supabaseUrl}/functions/v1/manage-api-keys`);
+    url.searchParams.append('action', action);
+
+    const response = await fetch(url.toString(), {
+      method: action === 'list' ? 'GET' : action === 'create' ? 'POST' : action === 'delete' ? 'DELETE' : 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Unknown error' }));
+      throw new Error(error.error || 'API request failed');
+    }
+
+    return response.json();
+  };
+
   const loadApiKeys = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('plate_recognizer_api_keys')
-        .select('*')
-        .order('priority', { ascending: true });
-
-      if (error) throw error;
-      setApiKeys(data || []);
+      const { keys } = await callApiKeysFunction('list');
+      setApiKeys(keys || []);
     } catch (error) {
       console.error('Error loading API keys:', error);
       toast.error('Erro ao carregar chaves API');
@@ -60,16 +89,11 @@ export function ApiKeysManagement() {
     }
 
     try {
-      const { error } = await supabase
-        .from('plate_recognizer_api_keys')
-        .insert({
-          name: newKeyName,
-          api_key: newApiKey,
-          monthly_limit: parseInt(newLimit),
-          priority: apiKeys.length,
-        });
-
-      if (error) throw error;
+      await callApiKeysFunction('create', {
+        name: newKeyName,
+        api_key: newApiKey,
+        monthly_limit: parseInt(newLimit),
+      });
 
       toast.success('Chave API adicionada com sucesso');
       setIsDialogOpen(false);
@@ -85,13 +109,7 @@ export function ApiKeysManagement() {
 
   const handleDeleteKey = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('plate_recognizer_api_keys')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-
+      await callApiKeysFunction('delete', { id });
       toast.success('Chave API removida');
       loadApiKeys();
     } catch (error) {
@@ -102,16 +120,14 @@ export function ApiKeysManagement() {
 
   const handleResetUsage = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('plate_recognizer_api_keys')
-        .update({
+      await callApiKeysFunction('update', {
+        id,
+        updates: {
           usage_count: 0,
           reset_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
           active: true,
-        })
-        .eq('id', id);
-
-      if (error) throw error;
+        }
+      });
 
       toast.success('Contador zerado com sucesso');
       loadApiKeys();
@@ -123,12 +139,10 @@ export function ApiKeysManagement() {
 
   const handleToggleActive = async (id: string, currentState: boolean) => {
     try {
-      const { error } = await supabase
-        .from('plate_recognizer_api_keys')
-        .update({ active: !currentState })
-        .eq('id', id);
-
-      if (error) throw error;
+      await callApiKeysFunction('update', {
+        id,
+        updates: { active: !currentState }
+      });
 
       toast.success(currentState ? 'Chave desativada' : 'Chave ativada');
       loadApiKeys();
